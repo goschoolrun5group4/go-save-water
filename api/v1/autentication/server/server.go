@@ -18,7 +18,9 @@ func handlers() http.Handler {
 	router := mux.NewRouter()
 	api := router.PathPrefix("/api/v1").Subrouter()
 
-	api.HandleFunc("/login", login).Methods("GET")
+	api.HandleFunc("/signup", login).Methods("POST")
+	api.HandleFunc("/login", login).Methods("POST")
+	api.HandleFunc("/logout", login).Methods("POST")
 
 	return router
 }
