@@ -20,7 +20,7 @@ type UsersInfo struct {
 	HashedPassword string `json:"hashedPassword,omitempty"`
 	Email          string `json:"email"`
 	Role           string `json:"role,omitempty"`
-	IsDeleted      bool   `json:"isDeleted,omitempty"`
+	IsDeleted      *bool  `json:"isDeleted,omitempty"`
 	CreatedDT      string `json:"createdDT,omitempty"`
 	ModifiedDT     string `json:"modifiedDT,omitempty"`
 }
