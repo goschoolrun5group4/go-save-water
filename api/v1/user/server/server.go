@@ -17,6 +17,11 @@ func Start() {
 func handlers() http.Handler {
 	router := mux.NewRouter()
 	api := router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/users", userList).Methods("GET")
+
+	api.HandleFunc("/users", allusers)
+	api.HandleFunc("/user/{userid}", userGet).Methods("GET")
+	api.HandleFunc("/user/{userid}", userPut).Methods("PUT")
+	api.HandleFunc("/user/{userid}", userPost).Methods("POST")
+	api.HandleFunc("/user/{userid}", userDelete).Methods("DELETE")
 	return router
 }
