@@ -11,7 +11,7 @@ func addressList(db *sql.DB) {
 }
 
 type Address struct {
-	ID int
+	AccountNumber int
 	PostalCode int
 	Floor int
 	UnitNumber int
@@ -44,7 +44,7 @@ func ReadAddresses(db *sql.DB) {
 	for results.Next() {
 		var address Address
 		err = results.Scan(
-			&address.ID, 
+			&address.AccountNumber, 
 			&address.PostalCode, 
 			&address.Floor, 
 			&address.UnitNumber,
@@ -57,7 +57,7 @@ func ReadAddresses(db *sql.DB) {
 		}      
 		
 		fmt.Println(
-			address.ID, 
+			address.AccountNumber, 
 			address.PostalCode, 
 			address.Floor, 
 			address.UnitNumber,
@@ -67,20 +67,20 @@ func ReadAddresses(db *sql.DB) {
 	}
 }
 
-func UpdateAddress(db *sql.DB, ID int, PostalCode int, Floor int, UnitNumber int, BuildingName string) {
+func UpdateAddress(db *sql.DB, AccountNumber int, PostalCode int, Floor int, UnitNumber int, BuildingName string) {
 	ModifiedDt := time.Now().Format(time.RFC3339)
 
 	query := fmt.Sprintf(
-		"UPDATE Address SET PostalCode=%d, Floor=%d, UnitNumber=%d BuildingName='%s' ModifiedDT='%s' WHERE ID=%d", 
-		PostalCode, Floor, UnitNumber, BuildingName, ModifiedDt, ID)
+		"UPDATE Address SET PostalCode=%d, Floor=%d, UnitNumber=%d BuildingName='%s' ModifiedDT='%s' WHERE AccountNumber=%d", 
+		PostalCode, Floor, UnitNumber, BuildingName, ModifiedDt, AccountNumber)
 	_, err := db.Query(query)   
 	if err != nil {
 		panic(err.Error())
 	}
 }
 
-func DeleteAddress(db *sql.DB, ID int) {
-	query := fmt.Sprintf("DELETE FROM Address WHERE ID='%d'", ID)
+func DeleteAddress(db *sql.DB, AccountNumber int) {
+	query := fmt.Sprintf("DELETE FROM Address WHERE AccountNumber='%d'", AccountNumber)
 	_, err := db.Query(query)   
 	if err != nil {
 		panic(err.Error())
