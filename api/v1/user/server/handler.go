@@ -106,54 +106,48 @@ func userPost(db *sql.DB) http.HandlerFunc {
 			userNameExist bool
 		)
 
-		// TODO: Use Middleware when merged
-		if r.Header.Get("Content-type") == "application/json" {
-			// read the string sent to the service
-			reqBody, err := ioutil.ReadAll(r.Body)
-			if err == nil {
-				// convert JSON to object
-				json.Unmarshal(reqBody, &newUser)
+		// read the string sent to the service
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err == nil {
+			// convert JSON to object
+			json.Unmarshal(reqBody, &newUser)
 
-				// TODO: Validation?
-				/*if newUser.Username == "" {
-					w.WriteHeader(http.StatusUnprocessableEntity)
-					w.Write([]byte("422 -Please provide FirstName " + "LastName" + "Username" + "Email"))
-					return
-				}*/
+			// TODO: Validation?
+			/*if newUser.Username == "" {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				w.Write([]byte("422 -Please provide FirstName " + "LastName" + "Username" + "Email"))
+				return
+			}*/
 
-				// Check if username exist
-				err = db.QueryRow("call spUserExistByUserName(?)", newUser.Username).Scan(&userNameExist)
-				if err != nil {
-					log.Error.Println(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("500 - Internal Server Error"))
-					return
-				}
-				if userNameExist {
-					w.WriteHeader(http.StatusConflict)
-					w.Write([]byte("409 - Username Taken"))
-					return
-				}
-				//query = fmt.Sprintf("UPDATE user SET username ='%s' WHERE username = '%s'", newUser.first_name, newUser.last_name)
-				_, err = db.Query("call spUserCreate(?, ?, ?, ?, ?, ?)",
-					newUser.Username,
-					newUser.FirstName,
-					newUser.LastName,
-					newUser.Email,
-					newUser.HashedPassword,
-					newUser.Role,
-				)
-				if err != nil {
-					log.Error.Println(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("500 - Server Error"))
-					return
-				}
-				w.WriteHeader(http.StatusCreated)
+			// Check if username exist
+			err = db.QueryRow("call spUserExistByUserName(?)", newUser.Username).Scan(&userNameExist)
+			if err != nil {
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Internal Server Error"))
+				return
 			}
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			w.Write([]byte("422 - Please supply data in JSON format"))
+			if userNameExist {
+				w.WriteHeader(http.StatusConflict)
+				w.Write([]byte("409 - Username Taken"))
+				return
+			}
+			//query = fmt.Sprintf("UPDATE user SET username ='%s' WHERE username = '%s'", newUser.first_name, newUser.last_name)
+			_, err = db.Query("call spUserCreate(?, ?, ?, ?, ?, ?)",
+				newUser.Username,
+				newUser.FirstName,
+				newUser.LastName,
+				newUser.Email,
+				newUser.HashedPassword,
+				newUser.Role,
+			)
+			if err != nil {
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Server Error"))
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
 		}
 	}
 }
@@ -169,57 +163,51 @@ func userPut(db *sql.DB) http.HandlerFunc {
 			userExist bool
 		)
 
-		// TODO: Use Middleware when merged
-		if r.Header.Get("Content-type") == "application/json" {
-			reqBody, err := ioutil.ReadAll(r.Body)
-			if err == nil {
-				json.Unmarshal(reqBody, &userInfo)
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err == nil {
+			json.Unmarshal(reqBody, &userInfo)
 
-				// TODO: Validation?
-				/*if newUser.Username == "" {
-					w.WriteHeader(http.StatusUnprocessableEntity)
-					w.Write([]byte("422 -Please provide username " + " email " + "in JSON format"))
-					return
-				}*/
+			// TODO: Validation?
+			/*if newUser.Username == "" {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				w.Write([]byte("422 -Please provide username " + " email " + "in JSON format"))
+				return
+			}*/
 
-				// Check if userID exist
-				err = db.QueryRow("call spUserExistByUserID(?)", userID).Scan(&userExist)
-				if err != nil {
-					log.Error.Println(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("500 - Internal Server Error"))
-					return
-				}
-				if !userExist {
-					w.WriteHeader(http.StatusNotFound)
-					w.Write([]byte("404 - User not Found"))
-					return
-				}
-
-				_, err = db.Query("call spUserUpdate(?, ?, ?, ?, ?, ?, ?, ?)",
-					userID,
-					com.NewNullString(userInfo.FirstName),
-					com.NewNullString(userInfo.LastName),
-					com.NewNullString(userInfo.Username),
-					com.NewNullString(userInfo.HashedPassword),
-					com.NewNullString(userInfo.Email),
-					com.NewNullString(userInfo.Role),
-					userInfo.IsDeleted,
-				)
-
-				if err != nil {
-					log.Error.Println(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("500 - Internal Server Error"))
-					return
-				}
-
-				w.WriteHeader(http.StatusAccepted)
-
+			// Check if userID exist
+			err = db.QueryRow("call spUserExistByUserID(?)", userID).Scan(&userExist)
+			if err != nil {
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Internal Server Error"))
+				return
 			}
-		} else {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			w.Write([]byte("422 - Please supply user information in JSON format"))
+			if !userExist {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte("404 - User not Found"))
+				return
+			}
+
+			_, err = db.Query("call spUserUpdate(?, ?, ?, ?, ?, ?, ?, ?)",
+				userID,
+				com.NewNullString(userInfo.FirstName),
+				com.NewNullString(userInfo.LastName),
+				com.NewNullString(userInfo.Username),
+				com.NewNullString(userInfo.HashedPassword),
+				com.NewNullString(userInfo.Email),
+				com.NewNullString(userInfo.Role),
+				userInfo.IsDeleted,
+			)
+
+			if err != nil {
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Internal Server Error"))
+				return
+			}
+
+			w.WriteHeader(http.StatusAccepted)
+
 		}
 	}
 }
