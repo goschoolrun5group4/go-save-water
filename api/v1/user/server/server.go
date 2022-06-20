@@ -6,9 +6,11 @@ import (
 
 	com "go-save-water/pkg/common"
 	"go-save-water/pkg/log"
+	mw "go-save-water/pkg/middleware"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 )
 
 func Start() {
@@ -24,10 +26,12 @@ func handlers(db *sql.DB) http.Handler {
 	router := mux.NewRouter()
 	api := router.PathPrefix("/api/v1").Subrouter()
 
+	std := alice.New(mw.ContentTypeHandler)
+
 	api.Handle("/users", userList(db))
-	api.Handle("/user", userPost(db)).Methods("POST")
+	api.Handle("/user", std.Then(userPost(db))).Methods("POST")
 	api.Handle("/user/{userid}", userGet(db)).Methods("GET")
-	api.Handle("/user/{userid}", userPut(db)).Methods("PUT")
+	api.Handle("/user/{userid}", std.Then(userPut(db))).Methods("PUT")
 	api.Handle("/user/{userid}", userDelete(db)).Methods("DELETE")
 
 	return router
