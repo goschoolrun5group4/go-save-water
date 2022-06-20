@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	com "go-save-water/pkg/common"
 	"io/ioutil"
 	"net/http"
 
@@ -15,12 +18,13 @@ func signup(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		type SignupUser struct {
-			Username  string `json:"username"`
-			FirstName string `json:"firstName"`
-			LastName  string `json:"lastName"`
-			Password  string `json:"password"`
-			Email     string `json:"email"`
-			Role      string `json:"role.omitempty"`
+			Username       string `json:"username"`
+			FirstName      string `json:"firstName"`
+			LastName       string `json:"lastName"`
+			Password       string `json:"password,omitempty"`
+			HashedPassword string `json:"hashedPassword,omitempty"`
+			Email          string `json:"email"`
+			Role           string `json:"role,omitempty"`
 		}
 
 		type LoginUser struct {
@@ -31,9 +35,8 @@ func signup(db *sql.DB) http.HandlerFunc {
 		}
 
 		var (
-			signupUser     SignupUser
-			loginUser      LoginUser
-			hashedPassword []byte
+			signupUser SignupUser
+			loginUser  LoginUser
 		)
 
 		reqBody, err := ioutil.ReadAll(r.Body)
@@ -48,33 +51,57 @@ func signup(db *sql.DB) http.HandlerFunc {
 		json.Unmarshal(reqBody, &signupUser)
 		signupUser.Role = "user"
 
-		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(signupUser.Password), bcrypt.MinCost)
+		bPassword, err := bcrypt.GenerateFromPassword([]byte(signupUser.Password), bcrypt.MinCost)
 		if err != nil {
 			log.Error.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("500 - Server Error"))
 			return
 		}
+		signupUser.HashedPassword = string(bPassword)
+		signupUser.Password = ""
 
-		// TODO: Call User Create API
-		_, err = db.Query("call spUserCreate(?, ?, ?, ?, ?, ?)",
-			signupUser.Username,
-			signupUser.FirstName,
-			signupUser.LastName,
-			signupUser.Email,
-			hashedPassword,
-			signupUser.Role,
-		)
+		// Call User Create API
+		jsonStr, err := json.Marshal(signupUser)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		url := com.GetEnvVar("API_USER_ADDR") + "/user"
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
 		if err != nil {
 			log.Error.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("500 - Server Error"))
+			w.Write([]byte("500 - Internal Server Error"))
 			return
+		}
+
+		if resp.StatusCode == http.StatusConflict {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("409 - Username Taken"))
+			return
+		}
+
+		if resp.StatusCode == http.StatusUnprocessableEntity {
+			log.Error.Println("SignUp not sending json to user create service.")
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+		}
+
+		if resp.StatusCode == http.StatusInternalServerError {
+			log.Error.Println("Error Processing from User create service")
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
 		}
 
 		// Process Session Data, delete old session if multiple sessions are detected.
 		result := db.QueryRow("CALL spUserSessionCreate(?)", signupUser.Username)
-		err = result.Scan(&loginUser.UserID, &loginUser.SessionID, &loginUser.SessionID, &loginUser.ExpireDT)
+		err = result.Scan(&loginUser.UserID, &loginUser.Username, &loginUser.SessionID, &loginUser.ExpireDT)
 		// If user don't exist
 		if err != nil {
 			log.Error.Println(err)
