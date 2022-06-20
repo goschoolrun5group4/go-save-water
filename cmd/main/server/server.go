@@ -20,6 +20,7 @@ func Start() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/", index)
+	router.HandleFunc("/signup", signup)
 	router.HandleFunc("/login", login)
 	router.HandleFunc("/dashboard", dashboard)
 
