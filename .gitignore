@@ -1,2 +1,3 @@
 /cmd/main/log/*.*
 /api/v1/user/log/*.*
+/api/v1/address/log/*.*
