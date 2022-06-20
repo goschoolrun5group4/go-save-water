@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const (
+var (
 	USER string = com.GetEnvVar("DB_USER")
 	PASSWORD string = com.GetEnvVar("DB_PASSWORD")
 	ENDPOINT string = com.GetEnvVar("DB_ENDPOINT")
@@ -21,6 +21,9 @@ const (
 func Start() {
 	connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", USER, PASSWORD, ENDPOINT, DATABASE)
 	db, err := sql.Open("mysql", connectionString)
+
+	defer db.Close()
+
 	if err != nil {
 		panic(err.Error())
 	}
@@ -32,8 +35,13 @@ func Start() {
 
 func handlers(db *sql.DB) http.Handler {
 	router := mux.NewRouter()
-	api := router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/addresses", addressList(db)).Methods("GET")
+	api := router.PathPrefix("/api/v1/address").Subrouter()
+
+	api.Handle("/new", createAddress(db)).Methods("POST")
+	api.Handle("/view/{accountnumber}", readAddress(db)).Methods("GET")
+	api.Handle("/edit/{accountnumber}", updateAddress(db)).Methods("PUT")
+	api.Handle("/delete/{accountnumber}", deleteAddress(db)).Methods("DELETE")
+
 	return router
 }
 
