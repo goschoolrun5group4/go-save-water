@@ -22,7 +22,7 @@ func signup(db *sql.DB) http.HandlerFunc {
 			FirstName      string `json:"firstName"`
 			LastName       string `json:"lastName"`
 			Password       string `json:"password,omitempty"`
-			HashedPassword []byte `json:"hashedPassword,omitempty"`
+			HashedPassword string `json:"hashedPassword,omitempty"`
 			Email          string `json:"email"`
 			Role           string `json:"role,omitempty"`
 		}
@@ -51,13 +51,14 @@ func signup(db *sql.DB) http.HandlerFunc {
 		json.Unmarshal(reqBody, &signupUser)
 		signupUser.Role = "user"
 
-		signupUser.HashedPassword, err = bcrypt.GenerateFromPassword([]byte(signupUser.Password), bcrypt.MinCost)
+		bPassword, err := bcrypt.GenerateFromPassword([]byte(signupUser.Password), bcrypt.MinCost)
 		if err != nil {
 			log.Error.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("500 - Server Error"))
 			return
 		}
+		signupUser.HashedPassword = string(bPassword)
 		signupUser.Password = ""
 
 		// Call User Create API
@@ -100,7 +101,7 @@ func signup(db *sql.DB) http.HandlerFunc {
 
 		// Process Session Data, delete old session if multiple sessions are detected.
 		result := db.QueryRow("CALL spUserSessionCreate(?)", signupUser.Username)
-		err = result.Scan(&loginUser.UserID, &loginUser.SessionID, &loginUser.SessionID, &loginUser.ExpireDT)
+		err = result.Scan(&loginUser.UserID, &loginUser.Username, &loginUser.SessionID, &loginUser.ExpireDT)
 		// If user don't exist
 		if err != nil {
 			log.Error.Println(err)
