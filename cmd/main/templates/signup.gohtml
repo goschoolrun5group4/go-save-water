@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>GoSaveWater - Signup</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.8.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="static/css/signup.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <main class="form-signup">
+        <h1 class="h3 mb-3 fw-normal">Create New Account</h1>
+        {{if .Error}}
+            <div class="alert alert-danger">Error creating new account.</div>
+        {{end}}
+        <form id="signupFrm" class="row g-3" method="post">
+            <div class="col-md-6">
+                <label class="form-label" for ="firstName">First name</label>
+                <input class="form-control {{if not .ValidateFirstName}}is-invalid{{end}}" type="text" id="firstName" name="firstName" value="{{.SignupUser.FirstName}}" maxlength="45" required>
+                <div class="invalid-feedback">
+                    Please enter a valid first name<br/>(English only).
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for ="lastName">Last name</label>
+                <input class="form-control {{if not .ValidateLastName}}is-invalid{{end}}" type="text" id="lastName" name="lastName" value="{{.SignupUser.LastName}}" maxlength="45" required>
+                <div class="invalid-feedback">
+                    Please enter a valid last name<br/>(English only).
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for ="userName">Username</label>
+                <input class="form-control {{if not .ValidateUserName}}is-invalid{{end}}" type="text" id="userName" name="userName" placeholder="Username" value="{{.SignupUser.Username}}" maxlength="45" required>
+                <div class="invalid-feedback">
+                    {{if .UsernameTaken}}
+                        Sorry, this username isn't available.
+                   {{else}}
+                        Your username should be:
+                        <ul>
+                            <li>Between 5 and 45 characters</li>
+                            <li>Begin and end with a letter or number</li>
+                            <li>Contain only letters, numbers, '.', '_' or '-'.</li>
+                        </ul>
+                   {{end}}
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for ="emailAddr">Email</label>
+                <input class="form-control {{if not .ValidateEmail}}is-invalid{{end}}" type="email" id="emailAddr" name="emailAddr" placeholder="you@example.com" value="{{.SignupUser.Email}}" maxlength="100" required>
+                <div class="invalid-feedback">
+                    Please enter a valid email address.
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for ="password">Password</label>
+                <input class="form-control {{if not .ValidatePassword}}is-invalid{{end}}" type="password" id="password" name="password" autocomplete="off" required>
+                <div class="invalid-feedback">
+                    Your password is not strong enough. New passwords must:
+                    <ul>
+                        <li>Be at least 7 characters long</li>
+                        <li>Contain at least 1 upper case character</li>
+                        <li>Contain at least 1 lower case character</li>
+                        <li>Include at least one of the following special characters: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for ="confirmPassword">Confirm Password</label>
+                <input class="form-control {{if .ComparePasswordFail }}is-invalid{{end}}" type="password" id="confirmPassword" name="confirmPassword" autocomplete="off" required>
+                <div class="invalid-feedback">
+                    Passwords do not match. Please re-enter passwords.
+                </div>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="w-100 btn btn-lg btn-primary" >Sign up</button>
+            </div>
+        </form>
+        <br/>
+        <h5 class="text-center">Or <a href="/login">Login</a> if you have created an account</h5>
+        </div>
+    </main>
+</body>
+</html>
