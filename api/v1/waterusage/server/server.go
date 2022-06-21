@@ -37,11 +37,11 @@ func handlers(db *sql.DB) http.Handler {
 	router := mux.NewRouter()
 	api := router.PathPrefix("/api/v1").Subrouter()
 
-	api.Handle("/allusage", getAllBill(db)).Methods("GET")
-	api.Handle("/usage/{accountNumber}", getBill(db)).Methods("GET")
-	api.Handle("/usage/{accountNumber}", addBill(db)).Methods("POST")
-	api.Handle("/usage/{accountNumber}", updateBill(db)).Methods("PUT")
-	api.Handle("/usage/{accountNumber}", deleteBill(db)).Methods("DELETE")
+	api.Handle("/usages/{accountNumber}", getAllBill(db)).Methods("GET")
+	api.Handle("/usage/{accountNumber}/{billDate}", getBill(db)).Methods("GET")
+	api.Handle("/usage", addBill(db)).Methods("POST")
+	api.Handle("/usage/{accountNumber}/{billDate}", updateBill(db)).Methods("PUT")
+	api.Handle("/usage/{accountNumber}/{billDate}", deleteBill(db)).Methods("DELETE")
 
 	return router
 }

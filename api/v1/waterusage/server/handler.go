@@ -7,7 +7,6 @@ import (
 	"go-save-water/pkg/log"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -15,31 +14,30 @@ import (
 type WaterUsage struct {
 	AccountNumber int    `json:"accountNumber"`
 	BillDate      string `json:"billDate"`
-	Usage         string `json:"waterUsage"`
-	ImageURL      string `json:"imageURL"`
-	CreatedDT     string `json:"createDT"`
-	ModifiedDT    string `json:"modifiedDT"`
+	Consumption   string `json:"consumption"`
+	ImageURL      string `json:"imageURL,omitempty"`
+	CreatedDT     string `json:"createDT,omitempty"`
+	ModifiedDT    string `json:"modifiedDT,omitempty"`
 }
 
-func addBill(db *sql.DB) http.HandlerFunc {
+func addUsage(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-type") == "application/json" {
 
-			var newBill WaterUsage
+			var newUsage WaterUsage
 			reqBody, err := ioutil.ReadAll(r.Body)
 			if err != nil {
 				log.Error.Println("Error retrieving information")
 			} else {
-				json.Unmarshal(reqBody, &newBill)
+				json.Unmarshal(reqBody, &newUsage)
 			}
 
-			AccountNumber := newBill.AccountNumber
-			BillDate := newBill.BillDate
-			ImageURL := ""
-			CreatedDT := time.Now().Format(time.RFC3339)
-			ModifiedDT := CreatedDT
+			AccountNumber := newUsage.AccountNumber
+			BillDate := newUsage.BillDate
+			Consumption := newUsage.Consumption
+			//ImageURL := ""
 
-			query := fmt.Sprintf("INSERT INTO WaterUsage VALUE(%d, '%s', '%s', '%s', '%s')", AccountNumber, BillDate, ImageURL, CreatedDT, ModifiedDT)
+			query := fmt.Sprintf("INSERT INTO WaterUsage (AccountNumber, BillDate, Consumption, ImageURL, CreatedDT, ModifiedDT) VALUES(%d, '%s', %s, null, now(), null)", AccountNumber, BillDate, Consumption)
 
 			_, err = db.Query(query)
 			if err != nil {
@@ -52,10 +50,13 @@ func addBill(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func getAllBill(db *sql.DB) http.HandlerFunc {
+func getUsages(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		accountNumber := params["accountNumber"]
 		var allUsage []WaterUsage
-		results, err := db.Query("SELECT FROM WaterUsage")
+		query := fmt.Sprintf("SELECT AccountNumber, BillDate, Consumption FROM WaterUsage WHERE AccountNumber=%s", accountNumber)
+		results, err := db.Query(query)
 
 		if err != nil {
 			log.Error.Println("Error retrieving information")
@@ -63,31 +64,28 @@ func getAllBill(db *sql.DB) http.HandlerFunc {
 
 		for results.Next() {
 			var usage WaterUsage
-			err = results.Scan(&usage.AccountNumber, &usage.BillDate, &usage.Usage)
+			err = results.Scan(&usage.AccountNumber, &usage.BillDate, &usage.Consumption)
 
 			allUsage = append(allUsage, usage)
 
 			if err != nil {
 				log.Error.Println("Error retrieving information")
 			}
-
-			json.NewEncoder(w).Encode(usage)
 		}
+		json.NewEncoder(w).Encode(allUsage)
 	}
 }
 
-func getBill(db *sql.DB) http.HandlerFunc {
+func getUsage(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
-		BillDate := params["billDate"]
-		results, err := db.Query("SELECT FROM WaterUsage WHERE BillDate='%s'", BillDate)
-
-		if err != nil {
-			log.Error.Println("Error retrieving information")
-		}
+		accountNumber := params["accountNumber"]
+		billDate := params["billDate"]
+		query := fmt.Sprintf("SELECT AccountNumber, BillDate, Consumption FROM WaterUsage WHERE AccountNumber=%s AND billDate='%s'", accountNumber, billDate)
+		results := db.QueryRow(query)
 
 		var usage WaterUsage
-		err = results.Scan(&usage.AccountNumber, &usage.BillDate, &usage.Usage)
+		err := results.Scan(&usage.AccountNumber, &usage.BillDate, &usage.Consumption)
 
 		if err != nil {
 			log.Error.Println("Error retrieving information")
@@ -97,50 +95,47 @@ func getBill(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func updateBill(db *sql.DB) http.HandlerFunc {
+func updateUsage(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var updateBill WaterUsage
+		params := mux.Vars(r)
+		accountNumber := params["accountNumber"]
+		oldBillDate := params["billDate"]
+		var updatedUsage WaterUsage
 
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			err.Error()
 		} else {
-			json.Unmarshal(reqBody, &updateBill)
+			json.Unmarshal(reqBody, &updatedUsage)
 		}
 
-		newBillDate := updateBill.BillDate
-		newUsage := updateBill.Usage
-		modifiedDT := time.Now().Format(time.RFC3339)
+		newBillDate := updatedUsage.BillDate
+		newUsage := updatedUsage.Consumption
 
-		query := fmt.Sprintf("UPDATE WaterUsage SET BillDate='%s', Usage='%s', ModifiedDT='%s'", newBillDate, newUsage, modifiedDT)
+		query := fmt.Sprintf("UPDATE WaterUsage SET BillDate='%s', Consumption='%s', ModifiedDT=now() WHERE AccountNumber=%s AND BillDate='%s'", newBillDate, newUsage, accountNumber, oldBillDate)
 		_, err = db.Query(query)
 		if err != nil {
 			log.Error.Println("Error updating information")
 		}
 
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte("201 - Bill Date: " + newBillDate + "Usage: " + newUsage + "successfully updated."))
 	}
 }
 
-func deleteBill(db *sql.DB) http.HandlerFunc {
+func deleteUsage(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var deleteBill WaterUsage
+		params := mux.Vars(r)
+		accountNumber := params["accountNumber"]
+		billDate := params["billDate"]
 
-		reqBody, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			err.Error()
-		} else {
-			json.Unmarshal(reqBody, deleteBill)
-		}
-
-		query := fmt.Sprintf("DELETE FROM WaterUsage WHERE BillDate='%s'", deleteBill.BillDate)
-		_, err = db.Query(query)
+		query := fmt.Sprintf("DELETE FROM WaterUsage WHERE BillDate='%s' AND AccountNumber=%s", billDate, accountNumber)
+		_, err := db.Query(query)
 		if err != nil {
 			log.Error.Println("Error retrieving information")
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("201 - Month Usage: " + deleteBill.BillDate + "successfully deleted"))
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte("201 - Monthly Usage: " + billDate + "successfully deleted"))
 	}
 }
