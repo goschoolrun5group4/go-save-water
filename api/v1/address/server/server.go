@@ -35,12 +35,13 @@ func Start() {
 
 func handlers(db *sql.DB) http.Handler {
 	router := mux.NewRouter()
-	api := router.PathPrefix("/api/v1/address").Subrouter()
+	api := router.PathPrefix("/api/v1").Subrouter()
 
-	api.Handle("/new", createAddress(db)).Methods("POST")
-	api.Handle("/view/{accountnumber}", readAddress(db)).Methods("GET")
-	api.Handle("/edit/{accountnumber}", updateAddress(db)).Methods("PUT")
-	api.Handle("/delete/{accountnumber}", deleteAddress(db)).Methods("DELETE")
+	api.Handle("/address", createAddress(db)).Methods("POST")
+	api.Handle("/addresses", readAddresses(db)).Methods("GET")
+	api.Handle("/address/{accountnumber}", readAddress(db)).Methods("GET")
+	api.Handle("/address/{accountnumber}", updateAddress(db)).Methods("PUT")
+	api.Handle("/address/{accountnumber}", deleteAddress(db)).Methods("DELETE")
 
 	return router
 }

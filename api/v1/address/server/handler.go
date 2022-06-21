@@ -109,17 +109,9 @@ func updateAddress(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func readAddress(db *sql.DB) http.HandlerFunc {
+func readAddresses(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		params := mux.Vars(r)
-		AccountNumber := params["accountnumber"]
-		results, err := db.Query("")
-
-		if AccountNumber != "" {
-			results, err = db.Query("Select * FROM Address WHERE AccountNumber='%d'", AccountNumber)
-		} else {
-			results, err = db.Query("Select * FROM Address")
-		}
+		results, err := db.Query("Select * FROM Address")
 
 		if err != nil {
 			panic(err.Error())
@@ -147,6 +139,35 @@ func readAddress(db *sql.DB) http.HandlerFunc {
 
 			json.NewEncoder(w).Encode(addresses)
 		}
+	}
+}
+
+func readAddress(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		AccountNumber := params["accountnumber"]
+		results, err := db.Query("Select * FROM Address WHERE AccountNumber='%d'", AccountNumber)
+
+		if err != nil {
+			panic(err.Error())
+		}
+
+		var address AddressInfo
+		err = results.Scan(
+			&address.AccountNumber,
+			&address.PostalCode,
+			&address.Floor,
+			&address.UnitNumber,
+			&address.BuildingName,
+			&address.CreatedDT,
+			&address.ModifiedDT,
+		)
+
+		if err != nil {
+			panic(err.Error())
+		}
+
+		json.NewEncoder(w).Encode(address)
 	}
 }
 
