@@ -1,0 +1,4 @@
+# Exclude all files from being added to the log folder
+*
+# Except itself
+!.gitignore
