@@ -22,30 +22,27 @@ type WaterUsage struct {
 
 func addUsage(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Content-type") == "application/json" {
+		var newUsage WaterUsage
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Error.Println("Error retrieving information")
+		} else {
+			json.Unmarshal(reqBody, &newUsage)
+		}
 
-			var newUsage WaterUsage
-			reqBody, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.Error.Println("Error retrieving information")
-			} else {
-				json.Unmarshal(reqBody, &newUsage)
-			}
+		AccountNumber := newUsage.AccountNumber
+		BillDate := newUsage.BillDate
+		Consumption := newUsage.Consumption
+		//ImageURL := ""
 
-			AccountNumber := newUsage.AccountNumber
-			BillDate := newUsage.BillDate
-			Consumption := newUsage.Consumption
-			//ImageURL := ""
+		query := fmt.Sprintf("INSERT INTO WaterUsage (AccountNumber, BillDate, Consumption, ImageURL, CreatedDT, ModifiedDT) VALUES(%d, '%s', %s, null, now(), null)", AccountNumber, BillDate, Consumption)
 
-			query := fmt.Sprintf("INSERT INTO WaterUsage (AccountNumber, BillDate, Consumption, ImageURL, CreatedDT, ModifiedDT) VALUES(%d, '%s', %s, null, now(), null)", AccountNumber, BillDate, Consumption)
-
-			_, err = db.Query(query)
-			if err != nil {
-				log.Error.Println("Error retrieving information")
-			} else {
-				w.WriteHeader(http.StatusCreated)
-				w.Write([]byte("201 - Bill added successfully"))
-			}
+		_, err = db.Query(query)
+		if err != nil {
+			log.Error.Println("Error retrieving information")
+		} else {
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte("201 - Bill added successfully"))
 		}
 	}
 }
