@@ -52,7 +52,7 @@ func createAddress(db *sql.DB) http.HandlerFunc {
 					panic(err.Error())
 				}
 
-				lastId := fmt.Sprintf("SELECT SCOPE_IDENTITY()")
+				lastId := fmt.Sprintf("SELECT LAST_INSERT_ID()")
 
 				w.WriteHeader(http.StatusCreated)
 				w.Write([]byte("201 - Address Account Number: " + lastId + " added successfully"))
@@ -113,10 +113,12 @@ func readAddress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		AccountNumber := params["accountnumber"]
+		results, err := db.Query("")
+
 		if AccountNumber != "" {
-			results, err := db.Query("Select * FROM Address WHERE AccountNumber='%d'", AccountNumber)
+			results, err = db.Query("Select * FROM Address WHERE AccountNumber='%d'", AccountNumber)
 		} else {
-			results, err := db.Query("Select * FROM Address")
+			results, err = db.Query("Select * FROM Address")
 		}
 
 		if err != nil {
