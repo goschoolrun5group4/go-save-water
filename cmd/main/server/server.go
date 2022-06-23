@@ -22,6 +22,7 @@ func Start() {
 	router.HandleFunc("/", index)
 	router.HandleFunc("/signup", signup)
 	router.HandleFunc("/login", login)
+	router.HandleFunc("/address", address)
 	router.HandleFunc("/dashboard", dashboard)
 	router.HandleFunc("/verification/{token}", verification)
 
