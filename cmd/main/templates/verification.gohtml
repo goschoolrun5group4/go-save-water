@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>GoSaveWater - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.8.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/static/css/verification.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.min.js"></script>
+</head>
+<body class="text-center">
+<main class="content">
+    {{if .TokenExpired}}
+        <h1>Email verification link expired</h1><br/>
+        <div>Looks like the verification link expired, click the button below to send a new link again.</div><br/>
+        <form method="post">
+            <input type="hidden" name="email" value="{{.Email}}">
+            <button type="submit" class="btn btn-lg btn-primary" >Resend verification link</button>
+        </form>
+        {{if .EmailSend}}
+            <br/>
+            <div class="alert alert-success">A new verification link wad sent to your email.</div>
+        {{end}}
+    {{else}}
+        <div class="alert alert-danger">Invalid Token</div>
+    {{end}}
+</main>
+</body>
+</html>

@@ -30,6 +30,7 @@ func handlers(db *sql.DB) http.Handler {
 	api.Handle("/signup", std.Then(signup(db))).Methods("POST")
 	api.Handle("/login", std.Then(login(db))).Methods("POST")
 	api.Handle("/logout", std.Then(logout(db))).Methods("POST")
+	api.Handle("/verification", std.Then(verification(db))).Methods("POST")
 
 	return router
 }
