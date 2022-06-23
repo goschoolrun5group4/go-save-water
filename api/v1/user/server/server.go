@@ -31,6 +31,7 @@ func handlers(db *sql.DB) http.Handler {
 	api.Handle("/users", userList(db))
 	api.Handle("/user", std.Then(userPost(db))).Methods("POST")
 	api.Handle("/user/{userid}", userGet(db)).Methods("GET")
+	api.Handle("/user/email/{email}", userGetByEmail(db)).Methods("GET")
 	api.Handle("/user/{userid}", std.Then(userPut(db))).Methods("PUT")
 	api.Handle("/user/{userid}", userDelete(db)).Methods("DELETE")
 

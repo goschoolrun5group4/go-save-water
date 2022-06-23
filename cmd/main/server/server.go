@@ -24,6 +24,7 @@ func Start() {
 	router.HandleFunc("/login", login)
 	router.HandleFunc("/address", address)
 	router.HandleFunc("/dashboard", dashboard)
+	router.HandleFunc("/verification/{token}", verification)
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 

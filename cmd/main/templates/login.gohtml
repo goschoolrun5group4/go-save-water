@@ -9,6 +9,11 @@
     <main class="form-login">
       <h1 class="h3 mb-3 fw-normal">Please sign in</h1>
       <form method="post">
+        {{if .ErrUserNotVerified}}
+            <div class="alert alert-danger">
+              Your account is not activated, a link with an activation link has been sent to your email.
+             </div>
+        {{end}}
         {{if .Error}}
         <div class="alert alert-danger">{{.ErrorMsg}}</div>
         {{ end }}

@@ -8,27 +8,30 @@
 <body>
     <main class="form-signup">
         <h1 class="h3 mb-3 fw-normal">Create New Account</h1>
+        {{if .VerificationEmailSent}}
+            <div class="alert alert-success">A verification link has been sent to your email account.</div>
+        {{end}}
         {{if .Error}}
             <div class="alert alert-danger">Error creating new account.</div>
         {{end}}
         <form id="signupFrm" class="row g-3" method="post">
             <div class="col-md-6">
                 <label class="form-label" for ="firstName">First name</label>
-                <input class="form-control {{if not .ValidateFirstName}}is-invalid{{end}}" type="text" id="firstName" name="firstName" value="{{.SignupUser.FirstName}}" maxlength="45" required>
+                <input class="form-control {{if .ErrValidateFirstName}}is-invalid{{end}}" type="text" id="firstName" name="firstName" value="{{.SignupUser.FirstName}}" maxlength="45" required>
                 <div class="invalid-feedback">
                     Please enter a valid first name<br/>(English only).
                 </div>
             </div>
             <div class="col-md-6">
                 <label class="form-label" for ="lastName">Last name</label>
-                <input class="form-control {{if not .ValidateLastName}}is-invalid{{end}}" type="text" id="lastName" name="lastName" value="{{.SignupUser.LastName}}" maxlength="45" required>
+                <input class="form-control {{if .ErrValidateLastName}}is-invalid{{end}}" type="text" id="lastName" name="lastName" value="{{.SignupUser.LastName}}" maxlength="45" required>
                 <div class="invalid-feedback">
                     Please enter a valid last name<br/>(English only).
                 </div>
             </div>
             <div class="col-12">
                 <label class="form-label" for ="userName">Username</label>
-                <input class="form-control {{if not .ValidateUserName}}is-invalid{{end}}" type="text" id="userName" name="userName" placeholder="Username" value="{{.SignupUser.Username}}" maxlength="45" required>
+                <input class="form-control {{if .ErrValidateUserName}}is-invalid{{end}}" type="text" id="userName" name="userName" placeholder="Username" value="{{.SignupUser.Username}}" maxlength="45" required>
                 <div class="invalid-feedback">
                     {{if .UsernameTaken}}
                         Sorry, this username isn't available.
@@ -44,14 +47,14 @@
             </div>
             <div class="col-12">
                 <label class="form-label" for ="emailAddr">Email</label>
-                <input class="form-control {{if not .ValidateEmail}}is-invalid{{end}}" type="email" id="emailAddr" name="emailAddr" placeholder="you@example.com" value="{{.SignupUser.Email}}" maxlength="100" required>
+                <input class="form-control {{if .ErrValidateEmail}}is-invalid{{end}}" type="email" id="emailAddr" name="emailAddr" placeholder="you@example.com" value="{{.SignupUser.Email}}" maxlength="100" required>
                 <div class="invalid-feedback">
                     Please enter a valid email address.
                 </div>
             </div>
             <div class="col-12">
                 <label class="form-label" for ="password">Password</label>
-                <input class="form-control {{if not .ValidatePassword}}is-invalid{{end}}" type="password" id="password" name="password" autocomplete="off" required>
+                <input class="form-control {{if .ErrValidatePassword}}is-invalid{{end}}" type="password" id="password" name="password" autocomplete="off" required>
                 <div class="invalid-feedback">
                     Your password is not strong enough. New passwords must:
                     <ul>
