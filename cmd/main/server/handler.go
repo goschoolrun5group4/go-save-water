@@ -322,6 +322,69 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func address(w http.ResponseWriter, r *http.Request) {
+
+	type AddressInfo struct {
+		PostalCode   string `json:"postalCode"`
+		Floor        string `json:"floor"`
+		UnitNumber   string `json:"unitNumber"`
+		BuildingName string `json:"buildingName"`
+		BlockNumber  string `json:"blockNumber"`
+		Street       string `json:"street"`
+	}
+
+	ViewData := struct {
+		AddressInfo           AddressInfo
+		Error                 bool
+		ValidateFail          bool
+	}{
+		AddressInfo{},
+		false,
+		false,
+	}
+
+	if r.Method == http.MethodPost {
+		ViewData.AddressInfo.PostalCode = r.FormValue("postalCode")
+		ViewData.AddressInfo.Floor = r.FormValue("floor")
+		ViewData.AddressInfo.UnitNumber = r.FormValue("unitNumber")
+		ViewData.AddressInfo.BuildingName = r.FormValue("buildingName")
+		ViewData.AddressInfo.BlockNumber = r.FormValue("blockNumber")
+		ViewData.AddressInfo.Street = r.FormValue("street")
+
+		if validator.IsEmpty(ViewData.AddressInfo.PostalCode) {
+			ViewData.ValidateFail = true
+		}
+
+		if ViewData.ValidateFail {
+			if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		jsonStr, err := json.Marshal(ViewData.AddressInfo)
+		if err != nil {
+			log.Error.Println(err)
+			return
+		}
+
+		url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/address"
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
+		}
+
+		if resp.StatusCode == http.StatusInternalServerError {
+			ViewData.Error = true
+		}
+	}
+
 	if err := tpl.ExecuteTemplate(w, "address.gohtml", nil); err != nil {
 		log.Fatal.Fatalln(err)
 	}
