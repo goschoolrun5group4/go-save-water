@@ -248,3 +248,9 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 		log.Fatal.Fatalln(err)
 	}
 }
+
+func useredit(w http.ResponseWriter, r *http.Request) {
+	if err := tpl.ExecuteTemplate(w, "useredit.gohtml", nil); err != nil {
+		log.Fatal.Fatalln(err)
+	}
+}
