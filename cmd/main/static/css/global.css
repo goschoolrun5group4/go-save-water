@@ -18,3 +18,8 @@ body {
 .btn-next {
   float: right;
 }
+
+.required:after {
+  content:" *";
+  color: red;
+}
