@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    {{ template "header" }}
+    <link rel="stylesheet" href="static/css/address.css" />
+    <title>GoSaveWater - Address</title>
+  </head>
+  <body>
+    <main class="form-address">
+      <h1 class="h3 mb-3 fw-normal">Create New Address</h1>
+      <form id="addressForm" class="row g-3" method="post">
+        <div class="col-12">
+            <label class="form-label" for ="blockNumber">Block/House No.</label>
+            <input class="form-control" type="text" id="blockNumber" name="blockNumber" value="{{.AddressInfo.BlockNumber}}" maxlength="6">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for ="floor">Floor No.</label>
+            <input class="form-control" type="text" id="floor" name="floor" value="{{.AddressInfo.Floor}}" maxlength="6">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for ="unitNumber">Unit No.</label>
+            <input class="form-control" type="text" id="unitNumber" name="unitNumber" value="{{.AddressInfo.UnitNumber}}" maxlength="6">
+        </div>
+        <div class="col-12">
+          <label class="form-label required" for="postalCode">Postal Code</label>
+          <input class="form-control" type="text" id="postalCode" name="postalCode" value="{{.AddressInfo.PostalCode}}" maxlength="6" required/>
+          <br/>
+        <div class="col-12">
+            <div class="col-12">
+          <label class="form-label" for="street">Street Name</label>
+          <input class="form-control" type="text" id="street" name="street" value="{{.AddressInfo.Street}}" maxlength="256"/>
+          <br/>
+        <div class="col-12">
+          <button class="btn btn-lg btn-secondary btn-previous" onclick="history.back()">
+            Previous
+          </button>
+          <button type="submit" class="btn btn-lg btn-primary btn-next">
+            Next
+          </button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>

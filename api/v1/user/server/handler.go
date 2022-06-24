@@ -23,6 +23,7 @@ type UsersInfo struct {
 	IsDeleted      *bool  `json:"isDeleted,omitempty"`
 	CreatedDT      string `json:"createdDT,omitempty"`
 	ModifiedDT     string `json:"modifiedDT,omitempty"`
+	Verified       *bool  `json:"verified,omitempty"`
 }
 
 func userList(db *sql.DB) http.HandlerFunc {
@@ -69,7 +70,7 @@ func userGet(db *sql.DB) http.HandlerFunc {
 		userID := params["userid"]
 
 		// Prepared Statement
-		stmt, err := db.Prepare("SELECT UserID, FirstName, LastName, UserName, Email, Role, IsDeleted FROM User WHERE UserID = ?")
+		stmt, err := db.Prepare("SELECT UserID, FirstName, LastName, UserName, Email, Role, IsDeleted, Verified FROM User WHERE UserID = ?")
 		if err != nil {
 			log.Error.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -85,6 +86,45 @@ func userGet(db *sql.DB) http.HandlerFunc {
 			&user.Email,
 			&user.Role,
 			&user.IsDeleted,
+			&user.Verified,
+		)
+
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - No user found"))
+			return
+		}
+
+		json.NewEncoder(w).Encode(user)
+	}
+}
+
+func userGetByEmail(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var user UsersInfo
+
+		params := mux.Vars(r)
+		email := params["email"]
+
+		// Prepared Statement
+		stmt, err := db.Prepare("SELECT UserID, FirstName, LastName, UserName, Email, Role, IsDeleted, Verified FROM User WHERE Email = ?")
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
+		}
+		result := stmt.QueryRow(email)
+		err = result.Scan(
+			&user.UserID,
+			&user.FirstName,
+			&user.LastName,
+			&user.Username,
+			&user.Email,
+			&user.Role,
+			&user.IsDeleted,
+			&user.Verified,
 		)
 
 		if err != nil {
@@ -188,7 +228,7 @@ func userPut(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			_, err = db.Query("call spUserUpdate(?, ?, ?, ?, ?, ?, ?, ?)",
+			_, err = db.Query("call spUserUpdate(?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				userID,
 				com.NewNullString(userInfo.FirstName),
 				com.NewNullString(userInfo.LastName),
@@ -197,6 +237,7 @@ func userPut(db *sql.DB) http.HandlerFunc {
 				com.NewNullString(userInfo.Email),
 				com.NewNullString(userInfo.Role),
 				userInfo.IsDeleted,
+				userInfo.Verified,
 			)
 
 			if err != nil {

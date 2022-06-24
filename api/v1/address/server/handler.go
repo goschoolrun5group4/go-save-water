@@ -14,11 +14,12 @@ import (
 
 type AddressInfo struct {
 	AccountNumber int    `json:"accountNumber"`
-	PostalCode    int    `json:"postalCode"`
-	Floor         int    `json:"floor"`
-	UnitNumber    int    `json:"unitNumber"`
+	PostalCode    string `json:"postalCode"`
+	Floor         string `json:"floor"`
+	UnitNumber    string `json:"unitNumber"`
 	BuildingName  string `json:"buildingName"`
 	BlockNumber   string `json:"blockNumber"`
+	Street        string `json:"street"`
 	CreatedDT     string `json:"createdDT"`
 	ModifiedDT    string `json:"modifiedDT"`
 }
@@ -32,7 +33,7 @@ func createAddress(db *sql.DB) http.HandlerFunc {
 			json.Unmarshal(reqBody, &newAddress)
 
 			PostalCode := newAddress.PostalCode
-			if len(strconv.Itoa(PostalCode)) != 6 {
+			if len(PostalCode) != 6 {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				w.Write([]byte("422 - Minimum length for PostalCode is 6"))
 				return
@@ -41,12 +42,14 @@ func createAddress(db *sql.DB) http.HandlerFunc {
 			Floor := newAddress.Floor
 			UnitNumber := newAddress.UnitNumber
 			BuildingName := newAddress.BuildingName
+			BlockNumber := newAddress.BlockNumber
+			Street := newAddress.Street
 			CreatedDt := time.Now().Format(time.RFC3339)
 			ModifiedDt := CreatedDt
 
 			query := fmt.Sprintf(
-				"INSERT INTO Address VALUES (NULL, %d, %d, %d, '%s', '%s', '%s')",
-				PostalCode, Floor, UnitNumber, BuildingName, CreatedDt, ModifiedDt)
+				"INSERT INTO Address VALUES (NULL, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
+				PostalCode, Floor, UnitNumber, BuildingName, BlockNumber, CreatedDt, ModifiedDt, Street)
 			_, err := db.Query(query)
 			if err != nil {
 				panic(err.Error())
@@ -56,7 +59,6 @@ func createAddress(db *sql.DB) http.HandlerFunc {
 
 			w.WriteHeader(http.StatusCreated)
 			w.Write([]byte("201 - Address Account Number: " + lastId + " added successfully"))
-
 		}
 	}
 }
@@ -77,7 +79,7 @@ func updateAddress(db *sql.DB) http.HandlerFunc {
 			}
 
 			PostalCode := newAddress.PostalCode
-			if len(strconv.Itoa(PostalCode)) != 6 {
+			if len(PostalCode) != 6 {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				w.Write([]byte("422 - Minimum length for PostalCode is 6"))
 				return
@@ -86,11 +88,13 @@ func updateAddress(db *sql.DB) http.HandlerFunc {
 			Floor := newAddress.Floor
 			UnitNumber := newAddress.UnitNumber
 			BuildingName := newAddress.BuildingName
+			BlockNumber := newAddress.BlockNumber
+			Street := newAddress.Street
 			ModifiedDt := time.Now().Format(time.RFC3339)
 
 			query := fmt.Sprintf(
-				"UPDATE Address SET PostalCode=%d, Floor=%d, UnitNumber=%d BuildingName='%s' ModifiedDT='%s' WHERE AccountNumber=%d",
-				PostalCode, Floor, UnitNumber, BuildingName, ModifiedDt, AccountNumber)
+				"UPDATE Address SET PostalCode='%s', Floor='%s', UnitNumber='%s', BuildingName='%s', BlockNumber='%s', ModifiedDT='%s', Street=='%s', WHERE AccountNumber=%d",
+				PostalCode, Floor, UnitNumber, BuildingName, BlockNumber, ModifiedDt, Street, AccountNumber)
 			_, err := db.Query(query)
 			if err != nil {
 				panic(err.Error())
@@ -98,7 +102,6 @@ func updateAddress(db *sql.DB) http.HandlerFunc {
 
 			w.WriteHeader(http.StatusCreated)
 			w.Write([]byte("201 - Address Account Number: " + strconv.Itoa(AccountNumber) + " updated successfully"))
-
 		}
 	}
 }
@@ -121,6 +124,8 @@ func readAddresses(db *sql.DB) http.HandlerFunc {
 				&address.Floor,
 				&address.UnitNumber,
 				&address.BuildingName,
+				&address.BlockNumber,
+				&address.Street,
 				&address.CreatedDT,
 				&address.ModifiedDT,
 			)
@@ -140,7 +145,7 @@ func readAddress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		AccountNumber := params["accountnumber"]
-		results, err := db.Query("Select * FROM Address WHERE AccountNumber='%d'", AccountNumber)
+		results, err := db.Query("Select * FROM Address WHERE AccountNumber=%d", AccountNumber)
 
 		if err != nil {
 			panic(err.Error())
@@ -155,6 +160,7 @@ func readAddress(db *sql.DB) http.HandlerFunc {
 			&address.BuildingName,
 			&address.CreatedDT,
 			&address.ModifiedDT,
+			&address.Street,
 		)
 
 		if err != nil {
