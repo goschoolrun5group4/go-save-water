@@ -14,6 +14,7 @@ require (
 	go-save-water/pkg/common v0.0.0-00010101000000-000000000000
 	go-save-water/pkg/log v0.0.0-00010101000000-000000000000
 	go-save-water/pkg/validator v0.0.0-00010101000000-000000000000
+	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	gopkg.in/mail.v2 v2.3.1
 )
 
