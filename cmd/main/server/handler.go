@@ -11,23 +11,11 @@ import (
 
 	com "go-save-water/pkg/common"
 	"go-save-water/pkg/log"
-
 	"go-save-water/pkg/validator"
-)
 
-// createNewSecureCookie creates and return a new secure cookie.
-func createNewSecureCookie(uuid string, expireDT time.Time) *http.Cookie {
-	cookie := &http.Cookie{
-		Name:     com.GetEnvVar("COOKIE_NAME"),
-		Expires:  expireDT,
-		Value:    uuid,
-		HttpOnly: true,
-		Path:     "/",
-		Domain:   "localhost",
-		Secure:   true,
-	}
-	return cookie
-}
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/gorilla/mux"
+)
 
 func index(w http.ResponseWriter, r *http.Request) {
 	if err := tpl.ExecuteTemplate(w, "index.gohtml", nil); err != nil {
@@ -46,26 +34,28 @@ func signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ViewData := struct {
-		ComparePasswordFail bool
-		SignupUser          SignupUser
-		Error               bool
-		UsernameTaken       bool
-		ValidateUserName    bool
-		ValidateFirstName   bool
-		ValidateLastName    bool
-		ValidateEmail       bool
-		ValidatePassword    bool
-		ValidateFail        bool
+		ComparePasswordFail   bool
+		SignupUser            SignupUser
+		Error                 bool
+		UsernameTaken         bool
+		ErrValidateUserName   bool
+		ErrValidateFirstName  bool
+		ErrValidateLastName   bool
+		ErrValidateEmail      bool
+		ErrValidatePassword   bool
+		ValidateFail          bool
+		VerificationEmailSent bool
 	}{
 		false,
 		SignupUser{},
 		false,
 		false,
-		true,
-		true,
-		true,
-		true,
-		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
 		false,
 	}
 
@@ -80,27 +70,27 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		// Validation
 		// Validate username
 		if validator.IsEmpty(ViewData.SignupUser.Username) || !validator.IsValidUsername(ViewData.SignupUser.Username) {
-			ViewData.ValidateUserName = false
+			ViewData.ErrValidateUserName = true
 			ViewData.ValidateFail = true
 		}
 		// Validate first name
 		if validator.IsEmpty(ViewData.SignupUser.FirstName) || !validator.IsValidName(ViewData.SignupUser.FirstName) {
-			ViewData.ValidateFirstName = false
+			ViewData.ErrValidateFirstName = true
 			ViewData.ValidateFail = true
 		}
 		// Validate last name
 		if validator.IsEmpty(ViewData.SignupUser.LastName) || !validator.IsValidName(ViewData.SignupUser.LastName) {
-			ViewData.ValidateLastName = false
+			ViewData.ErrValidateLastName = true
 			ViewData.ValidateFail = true
 		}
 		// Validate email
 		if validator.IsEmpty(ViewData.SignupUser.Email) || !validator.IsValidEmail(ViewData.SignupUser.Email) {
-			ViewData.ValidateEmail = false
+			ViewData.ErrValidateEmail = true
 			ViewData.ValidateFail = true
 		}
 		// Validate password
 		if validator.IsEmpty(ViewData.SignupUser.Password) || !validator.IsValidPassword(ViewData.SignupUser.Password) {
-			ViewData.ValidatePassword = false
+			ViewData.ErrValidatePassword = true
 			ViewData.ValidateFail = true
 		}
 
@@ -137,7 +127,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if resp.StatusCode == http.StatusConflict {
-			ViewData.ValidateUserName = true
+			ViewData.ErrValidateUserName = true
 			ViewData.UsernameTaken = true
 		}
 
@@ -145,27 +135,11 @@ func signup(w http.ResponseWriter, r *http.Request) {
 			ViewData.Error = true
 		}
 
-		if !ViewData.Error && !ViewData.ValidateUserName {
-			body, err := ioutil.ReadAll(resp.Body)
-			defer resp.Body.Close()
-			if err != nil {
-				ViewData.Error = true
-			} else {
-				var loginInfo map[string]interface{}
-				json.Unmarshal(body, &loginInfo)
-
-				uuid := loginInfo["sessionID"].(string)
-				date := loginInfo["expireDT"].(string)
-				expireDT, err := time.Parse(time.RFC3339, date)
-
-				if err != nil {
-					ViewData.Error = true
-				} else {
-					cookie := createNewSecureCookie(uuid, expireDT)
-					http.SetCookie(w, cookie)
-					http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
-				}
-			}
+		if !ViewData.Error && !ViewData.ErrValidateUserName {
+			// Go Routine
+			//Send email
+			go sendVerificationEmail(ViewData.SignupUser.Email)
+			ViewData.VerificationEmailSent = true
 		}
 
 	}
@@ -175,14 +149,105 @@ func signup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func verification(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	tokenString := params["token"]
+
+	isValid, email, err := validateJWT(tokenString)
+
+	ViewData := struct {
+		Email        string
+		TokenExpired bool
+		EmailSend    bool
+	}{
+		email,
+		false,
+		false,
+	}
+
+	if isValid {
+
+		jsonStr := fmt.Sprintf("{\"email\":\"%s\"}", email)
+
+		url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/verification"
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonStr)))
+		req.Header.Set("Content-type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
+		}
+
+		// If User not found
+		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusInternalServerError {
+			if err := tpl.ExecuteTemplate(w, "verification.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		body, err := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		if err != nil {
+			log.Error.Println(err)
+		}
+
+		var loginInfo map[string]interface{}
+		json.Unmarshal(body, &loginInfo)
+
+		uuid := loginInfo["sessionID"].(string)
+		date := loginInfo["expireDT"].(string)
+		expireDT, err := time.Parse(time.RFC3339, date)
+
+		if err != nil {
+			if err := tpl.ExecuteTemplate(w, "verification.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		} else {
+			cookie := createNewSecureCookie(uuid, expireDT)
+			http.SetCookie(w, cookie)
+			http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+			return
+		}
+	}
+
+	errCode := err.(*jwt.ValidationError).Errors
+	if errCode == jwt.ValidationErrorExpired {
+		ViewData.TokenExpired = true
+	}
+
+	if r.Method == http.MethodPost {
+		email := r.FormValue("email")
+		fmt.Println(email)
+		// Go Routine to send email
+		go sendVerificationEmail(email)
+		ViewData.EmailSend = true
+	}
+
+	if err := tpl.ExecuteTemplate(w, "verification.gohtml", ViewData); err != nil {
+		log.Fatal.Fatalln(err)
+	}
+}
+
 func login(w http.ResponseWriter, r *http.Request) {
 
 	ViewData := struct {
-		Error    bool
-		ErrorMsg string
+		Error                 bool
+		ErrorMsg              string
+		ErrUserNotVerified    bool
+		Email                 string
+		VerificationEmailSent bool
 	}{
 		false,
 		"",
+		false,
+		"",
+		false,
 	}
 
 	if r.Method == http.MethodPost {
@@ -192,14 +257,27 @@ func login(w http.ResponseWriter, r *http.Request) {
 		url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/login"
 		jsonVal := fmt.Sprintf(`{"username":"%s","password":"%s"}`, username, password)
 
-		var jsonStr = []byte(jsonVal)
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonVal)))
 		req.Header.Set("Content-type", "application/json")
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Error.Println(err)
+		}
+
+		body, err := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		if err != nil {
+			ViewData.Error = true
+			ViewData.ErrorMsg = "Internal Server Error."
+		}
+
+		if resp.StatusCode == http.StatusBadRequest {
+			var data map[string]interface{}
+			json.Unmarshal(body, &data)
+			ViewData.ErrUserNotVerified = true
+			go sendVerificationEmail(data["email"].(string))
 		}
 
 		if resp.StatusCode == http.StatusUnauthorized {
@@ -212,28 +290,21 @@ func login(w http.ResponseWriter, r *http.Request) {
 			ViewData.ErrorMsg = "Internal Server Error."
 		}
 
-		if !ViewData.Error {
-			body, err := ioutil.ReadAll(resp.Body)
-			defer resp.Body.Close()
+		if !ViewData.Error && !ViewData.ErrUserNotVerified {
+			var loginInfo map[string]interface{}
+			json.Unmarshal(body, &loginInfo)
+
+			uuid := loginInfo["sessionID"].(string)
+			date := loginInfo["expireDT"].(string)
+			expireDT, err := time.Parse(time.RFC3339, date)
+
 			if err != nil {
 				ViewData.Error = true
 				ViewData.ErrorMsg = "Internal Server Error."
 			} else {
-				var loginInfo map[string]interface{}
-				json.Unmarshal(body, &loginInfo)
-
-				uuid := loginInfo["sessionID"].(string)
-				date := loginInfo["expireDT"].(string)
-				expireDT, err := time.Parse(time.RFC3339, date)
-
-				if err != nil {
-					ViewData.Error = true
-					ViewData.ErrorMsg = "Internal Server Error."
-				} else {
-					cookie := createNewSecureCookie(uuid, expireDT)
-					http.SetCookie(w, cookie)
-					http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
-				}
+				cookie := createNewSecureCookie(uuid, expireDT)
+				http.SetCookie(w, cookie)
+				http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 			}
 		}
 	}
@@ -243,8 +314,162 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func logout(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+	cookie, err := r.Cookie(com.GetEnvVar("COOKIE_NAME"))
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+	url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/logout"
+	jsonVal := fmt.Sprintf(`{"userID":%d,"sessionID":"%s"}`, int(loggedInUser["userID"].(float64)), cookie.Value)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonVal)))
+	req.Header.Set("Content-type", "application/json")
+	client := &http.Client{}
+	_, err = client.Do(req)
+	if err != nil {
+		log.Error.Println(err)
+	}
+
+	cookie.Expires = time.Now()
+	http.SetCookie(w, cookie)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return
+}
+
 func dashboard(w http.ResponseWriter, r *http.Request) {
-	if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", nil); err != nil {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	ViewData := struct {
+		LoggedInUser  map[string]interface{}
+		UserUsage     string
+		NationalUsage string
+		UpdateAddress bool
+	}{
+		loggedInUser,
+		"",
+		"",
+		false,
+	}
+
+	if loggedInUser["accountNumber"] == nil {
+		ViewData.UpdateAddress = true
+		if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", ViewData); err != nil {
+			log.Fatal.Fatalln(err)
+		}
+		return
+	}
+
+	chnUserUsage := make(chan string)
+	chnNationalUsage := make(chan string)
+
+	go getUserUsage(loggedInUser["accountNumber"].(string), chnUserUsage)
+	go getNationalUsage(chnNationalUsage)
+
+	for i := 0; i < 2; i++ {
+		select {
+		case userUsageJson := <-chnUserUsage:
+			if len(userUsageJson) > 0 {
+				ViewData.UserUsage = userUsageJson
+			}
+		case nationalUsageJson := <-chnNationalUsage:
+			if len(nationalUsageJson) > 0 {
+				ViewData.NationalUsage = nationalUsageJson
+			}
+		}
+	}
+
+	if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", ViewData); err != nil {
+		log.Fatal.Fatalln(err)
+	}
+}
+
+func address(w http.ResponseWriter, r *http.Request) {
+
+	type AddressInfo struct {
+		PostalCode   string `json:"postalCode"`
+		Floor        string `json:"floor"`
+		UnitNumber   string `json:"unitNumber"`
+		BuildingName string `json:"buildingName"`
+		BlockNumber  string `json:"blockNumber"`
+		Street       string `json:"street"`
+	}
+
+	ViewData := struct {
+		AddressInfo  AddressInfo
+		Error        bool
+		ValidateFail bool
+	}{
+		AddressInfo{},
+		false,
+		false,
+	}
+
+	if r.Method == http.MethodPost {
+		ViewData.AddressInfo.PostalCode = r.FormValue("postalCode")
+		ViewData.AddressInfo.Floor = r.FormValue("floor")
+		ViewData.AddressInfo.UnitNumber = r.FormValue("unitNumber")
+		ViewData.AddressInfo.BuildingName = r.FormValue("buildingName")
+		ViewData.AddressInfo.BlockNumber = r.FormValue("blockNumber")
+		ViewData.AddressInfo.Street = r.FormValue("street")
+
+		if validator.IsEmpty(ViewData.AddressInfo.PostalCode) {
+			ViewData.ValidateFail = true
+		}
+
+		if ViewData.ValidateFail {
+			if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		jsonStr, err := json.Marshal(ViewData.AddressInfo)
+		if err != nil {
+			log.Error.Println(err)
+			return
+		}
+
+		url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/address"
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
+		}
+
+		if resp.StatusCode == http.StatusInternalServerError {
+			ViewData.Error = true
+		}
+	}
+
+	if err := tpl.ExecuteTemplate(w, "address.gohtml", nil); err != nil {
 		log.Fatal.Fatalln(err)
 	}
 }
