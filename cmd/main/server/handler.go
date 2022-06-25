@@ -473,6 +473,102 @@ func address(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func addressEdit(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	type AddressInfo struct {
+		PostalCode   string `json:"postalCode"`
+		Floor        string `json:"floor"`
+		UnitNumber   string `json:"unitNumber"`
+		BuildingName string `json:"buildingName"`
+		BlockNumber  string `json:"blockNumber"`
+		Street       string `json:"street"`
+	}
+
+	ViewData := struct {
+		LoggedInUser      map[string]interface{}
+		AddressInfo       AddressInfo
+		ValidateFail      bool
+		RetrieveDataError bool
+		ProcessError      bool
+		ProcessSuccess    bool
+	}{
+		loggedInUser,
+		AddressInfo{},
+		false,
+		false,
+		false,
+		false,
+	}
+
+	url := com.GetEnvVar("API_ADDRESS_ADDR") + fmt.Sprintf("/address/%s", loggedInUser["accountNumber"].(string))
+	body, _, err := com.FetchData(url)
+	if err != nil {
+		log.Error.Println(err)
+		ViewData.RetrieveDataError = true
+		if err := tpl.ExecuteTemplate(w, "addressEdit.gohtml", ViewData); err != nil {
+			log.Fatal.Fatalln(err)
+		}
+		return
+	}
+	err = json.Unmarshal(body, &ViewData.AddressInfo)
+	if err != nil {
+		log.Error.Println(err)
+	}
+
+	if r.Method == http.MethodPost {
+		ViewData.AddressInfo.PostalCode = r.FormValue("postalCode")
+		ViewData.AddressInfo.Floor = r.FormValue("floor")
+		ViewData.AddressInfo.UnitNumber = r.FormValue("unitNumber")
+		ViewData.AddressInfo.BuildingName = r.FormValue("buildingName")
+		ViewData.AddressInfo.BlockNumber = r.FormValue("blockNumber")
+		ViewData.AddressInfo.Street = r.FormValue("street")
+
+		jsonStr, err := json.Marshal(ViewData.AddressInfo)
+		if err != nil {
+			log.Error.Println(err)
+			return
+		}
+
+		url := com.GetEnvVar("API_ADDRESS_ADDR") + fmt.Sprintf("/address/%s", loggedInUser["accountNumber"].(string))
+		req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			ViewData.ProcessError = true
+			if err := tpl.ExecuteTemplate(w, "addressEdit.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if resp.StatusCode == http.StatusInternalServerError {
+			ViewData.ProcessError = true
+		}
+		if resp.StatusCode == http.StatusAccepted {
+			ViewData.ProcessSuccess = true
+		}
+
+	}
+
+	if err := tpl.ExecuteTemplate(w, "addressEdit.gohtml", ViewData); err != nil {
+		log.Fatal.Fatalln(err)
+	}
+}
+
 func userEdit(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {

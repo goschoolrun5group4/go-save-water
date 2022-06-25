@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	"go-save-water/pkg/log"
+
 	"github.com/gorilla/mux"
 )
 
@@ -66,13 +68,15 @@ func createAddress(db *sql.DB) http.HandlerFunc {
 func updateAddress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		params := mux.Vars(r)
+		AccountNumber := params["accountnumber"]
+
 		var newAddress AddressInfo
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err == nil {
 			json.Unmarshal(reqBody, &newAddress)
-			AccountNumber := newAddress.AccountNumber
 
-			if AccountNumber < 0 {
+			if len(AccountNumber) == 0 {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				w.Write([]byte("422 - Please select the address you want to update"))
 				return
@@ -93,15 +97,18 @@ func updateAddress(db *sql.DB) http.HandlerFunc {
 			ModifiedDt := time.Now().Format(time.RFC3339)
 
 			query := fmt.Sprintf(
-				"UPDATE Address SET PostalCode='%s', Floor='%s', UnitNumber='%s', BuildingName='%s', BlockNumber='%s', ModifiedDT='%s', Street=='%s', WHERE AccountNumber=%d",
+				"UPDATE Address SET PostalCode='%s', Floor='%s', UnitNumber='%s', BuildingName='%s', BlockNumber='%s', ModifiedDT='%s', Street='%s' WHERE AccountNumber=%s",
 				PostalCode, Floor, UnitNumber, BuildingName, BlockNumber, ModifiedDt, Street, AccountNumber)
 			_, err := db.Query(query)
 			if err != nil {
-				panic(err.Error())
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Internal Server Error"))
+				return
 			}
 
-			w.WriteHeader(http.StatusCreated)
-			w.Write([]byte("201 - Address Account Number: " + strconv.Itoa(AccountNumber) + " updated successfully"))
+			w.WriteHeader(http.StatusAccepted)
+			w.Write([]byte("202 - Address Account Number: " + AccountNumber + " updated successfully"))
 		}
 	}
 }
@@ -125,9 +132,9 @@ func readAddresses(db *sql.DB) http.HandlerFunc {
 				&address.UnitNumber,
 				&address.BuildingName,
 				&address.BlockNumber,
-				&address.Street,
 				&address.CreatedDT,
 				&address.ModifiedDT,
+				&address.Street,
 			)
 
 			addresses = append(addresses, address)
@@ -145,26 +152,35 @@ func readAddress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		AccountNumber := params["accountnumber"]
-		results, err := db.Query("Select * FROM Address WHERE AccountNumber=%d", AccountNumber)
 
-		if err != nil {
-			panic(err.Error())
-		}
+		query := fmt.Sprintf("SELECT * FROM Address WHERE AccountNumber=%s", AccountNumber)
+		result := db.QueryRow(query)
 
 		var address AddressInfo
-		err = results.Scan(
+		err := result.Scan(
 			&address.AccountNumber,
 			&address.PostalCode,
 			&address.Floor,
 			&address.UnitNumber,
 			&address.BuildingName,
+			&address.BlockNumber,
 			&address.CreatedDT,
 			&address.ModifiedDT,
 			&address.Street,
 		)
 
 		if err != nil {
-			panic(err.Error())
+			if err == sql.ErrNoRows {
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte("404 - Not found"))
+				return
+			} else {
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Server Error"))
+				return
+			}
 		}
 
 		json.NewEncoder(w).Encode(address)
