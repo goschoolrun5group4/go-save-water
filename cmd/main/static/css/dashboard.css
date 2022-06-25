@@ -81,3 +81,30 @@ body {
   top: .25rem;
   right: 1rem;
 }
+
+/*
+ * Forms
+ */
+
+.form-dashboard {
+  width: 100%;
+  max-width: 1000px;
+  padding: 15px;
+  margin: auto;
+}
+
+.form-dashboard .form-floating:focus-within {
+  z-index: 2;
+}
+
+.form-dashboard input[type="text"] {
+  margin-bottom: -1px;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.form-dashboard input[type="password"] {
+  margin-bottom: 10px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}

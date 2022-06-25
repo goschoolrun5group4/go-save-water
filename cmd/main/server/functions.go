@@ -135,13 +135,16 @@ func getUserUsage(accountNum string, chn chan string) {
 
 	url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usage/user/%s/latest/6", accountNum)
 	body, _, err := com.FetchData(url)
-
 	if err != nil {
 		log.Error.Println(err)
 		chn <- ""
 	}
 
-	json.Unmarshal(body, &retJSON)
+	err = json.Unmarshal(body, &retJSON)
+	if err != nil {
+		log.Error.Println(err)
+		chn <- ""
+	}
 
 	for _, v := range retJSON {
 		var pData Data
