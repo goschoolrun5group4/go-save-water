@@ -94,7 +94,7 @@ func updateAddress(db *sql.DB) http.HandlerFunc {
 
 			query := fmt.Sprintf(
 				"UPDATE Address SET PostalCode='%s', Floor='%s', UnitNumber='%s', BuildingName='%s', BlockNumber='%s', ModifiedDT='%s', Street=='%s', WHERE AccountNumber=%d",
-				PostalCode, Floor, UnitNumber, BuildingName, BlockNumber, ModifiedDt, Street,  AccountNumber)
+				PostalCode, Floor, UnitNumber, BuildingName, BlockNumber, ModifiedDt, Street, AccountNumber)
 			_, err := db.Query(query)
 			if err != nil {
 				panic(err.Error())

@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	com "go-save-water/pkg/common"
 	"go-save-water/pkg/log"
@@ -15,6 +16,29 @@ import (
 type JwtClaims struct {
 	Email string `json:"email"`
 	jwt.RegisteredClaims
+}
+
+type Data struct {
+	Month string `json:"x,omitempty"`
+	Usage string `json:"y,omitempty"`
+}
+
+func authenticationCheck(w http.ResponseWriter, r *http.Request) (map[string]interface{}, error) {
+	var userInfo map[string]interface{}
+	cookie, err := r.Cookie(com.GetEnvVar("COOKIE_NAME"))
+	if err != nil {
+		return nil, err
+	}
+	url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/verify/" + cookie.Value
+	body, statusCode, err := com.FetchData(url)
+	if err != nil || statusCode == http.StatusNotFound {
+		cookie.Expires = time.Now()
+		http.SetCookie(w, cookie)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return nil, err
+	}
+	json.Unmarshal(body, &userInfo)
+	return userInfo, nil
 }
 
 // createNewSecureCookie creates and return a new secure cookie.
@@ -99,5 +123,79 @@ func sendVerificationEmail(email string) {
 	if err := d.DialAndSend(m); err != nil {
 		fmt.Println(err)
 		panic(err)
+	}
+}
+
+func getUserUsage(accountNum string, chn chan string) {
+
+	var (
+		retJSON []map[string]interface{}
+		cData   []Data
+	)
+
+	url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usage/user/%s/latest/6", accountNum)
+	body, _, err := com.FetchData(url)
+
+	if err != nil {
+		log.Error.Println(err)
+		chn <- ""
+	}
+
+	json.Unmarshal(body, &retJSON)
+
+	for _, v := range retJSON {
+		var pData Data
+		t, err := time.Parse("2006-01-02", v["billDate"].(string))
+		if err != nil {
+			log.Error.Println("Error while parsing date :", err)
+		}
+		pData.Month = t.Month().String()
+		pData.Usage = v["consumption"].(string)
+		cData = append(cData, pData)
+	}
+
+	jString, err := json.Marshal(cData)
+	if err != nil {
+		log.Error.Println(err)
+		chn <- ""
+	} else {
+		chn <- string(jString)
+	}
+
+}
+
+func getNationalUsage(chn chan string) {
+	var (
+		retJSON []map[string]interface{}
+		cData   []Data
+	)
+
+	url := com.GetEnvVar("API_USAGE_ADDR") + "/usage/national/latest/6"
+	body, _, err := com.FetchData(url)
+
+	if err != nil {
+		log.Error.Println(err)
+		chn <- ""
+	}
+
+	json.Unmarshal(body, &retJSON)
+
+	for _, v := range retJSON {
+		var pData Data
+		t, err := time.Parse("2006-01", v["billDate"].(string))
+		if err != nil {
+			log.Error.Println("Error while parsing date :", err)
+		}
+		pData.Month = t.Month().String()
+		pData.Usage = v["consumption"].(string)
+		cData = append(cData, pData)
+	}
+
+	jString, err := json.Marshal(cData)
+	if err != nil {
+		log.Error.Println(err)
+		chn <- ""
+	} else {
+		chn <- string(jString)
 	}
 }

@@ -42,11 +42,13 @@ func handlers(db *sql.DB) http.Handler {
 
 	std := alice.New(mw.ContentTypeHandler)
 
-	api.Handle("/usages/{accountNumber}", getUsages(db)).Methods("GET")
-	api.Handle("/usage/{accountNumber}/{billDate}", getUsage(db)).Methods("GET")
+	api.Handle("/usages/user/{accountNumber}", getUsages(db)).Methods("GET")
+	api.Handle("/usage/user/{accountNumber}/{billDate}", getUsage(db)).Methods("GET")
 	api.Handle("/usage", std.Then(addUsage(db))).Methods("POST")
-	api.Handle("/usage/{accountNumber}/{billDate}", std.Then(updateUsage(db))).Methods("PUT")
-	api.Handle("/usage/{accountNumber}/{billDate}", deleteUsage(db)).Methods("DELETE")
+	api.Handle("/usage/user/{accountNumber}/{billDate}", std.Then(updateUsage(db))).Methods("PUT")
+	api.Handle("/usage/user/{accountNumber}/{billDate}", deleteUsage(db)).Methods("DELETE")
+	api.Handle("/usage/user/{accountNumber}/latest/{numOfMths}", getUsageByLatestMonths(db)).Methods("GET")
+	api.Handle("/usage/national/latest/{numOfMths}", getNationalUsageByLatestMonths(db)).Methods("GET")
 
 	return router
 }

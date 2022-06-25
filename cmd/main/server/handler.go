@@ -257,8 +257,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/login"
 		jsonVal := fmt.Sprintf(`{"username":"%s","password":"%s"}`, username, password)
 
-		var jsonStr = []byte(jsonVal)
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonVal)))
 		req.Header.Set("Content-type", "application/json")
 
 		client := &http.Client{}
@@ -315,8 +314,93 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func logout(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+	cookie, err := r.Cookie(com.GetEnvVar("COOKIE_NAME"))
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+	}
+	url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/logout"
+	jsonVal := fmt.Sprintf(`{"userID":%d,"sessionID":"%s"}`, int(loggedInUser["userID"].(float64)), cookie.Value)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonVal)))
+	req.Header.Set("Content-type", "application/json")
+	client := &http.Client{}
+	_, err = client.Do(req)
+	if err != nil {
+		log.Error.Println(err)
+	}
+
+	cookie.Expires = time.Now()
+	http.SetCookie(w, cookie)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return
+}
+
 func dashboard(w http.ResponseWriter, r *http.Request) {
-	if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", nil); err != nil {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	ViewData := struct {
+		LoggedInUser  map[string]interface{}
+		UserUsage     string
+		NationalUsage string
+		UpdateAddress bool
+	}{
+		loggedInUser,
+		"",
+		"",
+		false,
+	}
+
+	if loggedInUser["accountNumber"] == nil {
+		ViewData.UpdateAddress = true
+		if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", ViewData); err != nil {
+			log.Fatal.Fatalln(err)
+		}
+		return
+	}
+
+	chnUserUsage := make(chan string)
+	chnNationalUsage := make(chan string)
+
+	go getUserUsage(loggedInUser["accountNumber"].(string), chnUserUsage)
+	go getNationalUsage(chnNationalUsage)
+
+	for i := 0; i < 2; i++ {
+		select {
+		case userUsageJson := <-chnUserUsage:
+			if len(userUsageJson) > 0 {
+				ViewData.UserUsage = userUsageJson
+			}
+		case nationalUsageJson := <-chnNationalUsage:
+			if len(nationalUsageJson) > 0 {
+				ViewData.NationalUsage = nationalUsageJson
+			}
+		}
+	}
+
+	if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", ViewData); err != nil {
 		log.Fatal.Fatalln(err)
 	}
 }
@@ -333,9 +417,9 @@ func address(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ViewData := struct {
-		AddressInfo           AddressInfo
-		Error                 bool
-		ValidateFail          bool
+		AddressInfo  AddressInfo
+		Error        bool
+		ValidateFail bool
 	}{
 		AddressInfo{},
 		false,
