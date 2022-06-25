@@ -15,6 +15,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func index(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +35,6 @@ func signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ViewData := struct {
-		ComparePasswordFail   bool
 		SignupUser            SignupUser
 		Error                 bool
 		UsernameTaken         bool
@@ -43,11 +43,12 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		ErrValidateLastName   bool
 		ErrValidateEmail      bool
 		ErrValidatePassword   bool
+		ComparePasswordFail   bool
 		ValidateFail          bool
 		VerificationEmailSent bool
 	}{
-		false,
 		SignupUser{},
+		false,
 		false,
 		false,
 		false,
@@ -121,9 +122,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Error.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("500 - Internal Server Error"))
-			return
+			ViewData.Error = true
 		}
 
 		if resp.StatusCode == http.StatusConflict {
@@ -470,6 +469,156 @@ func address(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tpl.ExecuteTemplate(w, "address.gohtml", nil); err != nil {
+		log.Fatal.Fatalln(err)
+	}
+}
+
+func userEdit(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	type EditUser struct {
+		FirstName string `json:"firstName"`
+		LastName  string `json:"lastName"`
+		Password  string `json:"hashedPassword,omitempty"`
+		Email     string `json:"email"`
+	}
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	var editUser EditUser
+	editUser.FirstName = loggedInUser["firstName"].(string)
+	editUser.LastName = loggedInUser["lastName"].(string)
+	editUser.Email = loggedInUser["email"].(string)
+
+	ViewData := struct {
+		LoggedInUser         map[string]interface{}
+		EditUserData         EditUser
+		ErrValidateFirstName bool
+		ErrValidateLastName  bool
+		ErrValidateEmail     bool
+		ErrValidatePassword  bool
+		ComparePasswordFail  bool
+		ValidateFail         bool
+		ProcessError         bool
+		ProcessSuccess       bool
+	}{
+		loggedInUser,
+		editUser,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+		false,
+	}
+
+	if r.Method == http.MethodPost {
+		ViewData.EditUserData.FirstName = r.FormValue("firstName")
+		ViewData.EditUserData.LastName = r.FormValue("lastName")
+		ViewData.EditUserData.Email = r.FormValue("emailAddr")
+		ViewData.EditUserData.Password = r.FormValue("password")
+		passwordConfirm := r.FormValue("confirmPassword")
+
+		// Validation
+		// Validate first name
+		if validator.IsEmpty(ViewData.EditUserData.FirstName) || !validator.IsValidName(ViewData.EditUserData.FirstName) {
+			ViewData.ErrValidateFirstName = true
+			ViewData.ValidateFail = true
+		}
+		// Validate last name
+		if validator.IsEmpty(ViewData.EditUserData.LastName) || !validator.IsValidName(ViewData.EditUserData.LastName) {
+			ViewData.ErrValidateLastName = true
+			ViewData.ValidateFail = true
+		}
+		// Validate email
+		if validator.IsEmpty(ViewData.EditUserData.Email) || !validator.IsValidEmail(ViewData.EditUserData.Email) {
+			ViewData.ErrValidateEmail = true
+			ViewData.ValidateFail = true
+		}
+		// Validate password
+		if len(ViewData.EditUserData.Password) > 0 {
+			if !validator.IsValidPassword(ViewData.EditUserData.Password) {
+				ViewData.ErrValidatePassword = true
+				ViewData.ValidateFail = true
+			}
+		}
+
+		// Compare if password is the same
+		if c := strings.Compare(ViewData.EditUserData.Password, passwordConfirm); c != 0 {
+			ViewData.ComparePasswordFail = true
+			ViewData.ValidateFail = true
+		}
+
+		if ViewData.ValidateFail {
+			if err := tpl.ExecuteTemplate(w, "userEdit.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if len(ViewData.EditUserData.Password) > 0 {
+			bPassword, err := bcrypt.GenerateFromPassword([]byte(ViewData.EditUserData.Password), bcrypt.MinCost)
+			if err != nil {
+				log.Error.Println(err)
+				ViewData.ProcessError = true
+				if err := tpl.ExecuteTemplate(w, "userEdit.gohtml", ViewData); err != nil {
+					log.Fatal.Fatalln(err)
+				}
+				return
+			}
+			ViewData.EditUserData.Password = string(bPassword)
+		}
+
+		jsonStr, err := json.Marshal(ViewData.EditUserData)
+		if err != nil {
+			log.Error.Println(err)
+			return
+		}
+
+		url := com.GetEnvVar("API_USER_ADDR") + fmt.Sprintf("/user/%d", int(loggedInUser["userID"].(float64)))
+		req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error.Println(err)
+			ViewData.ProcessError = true
+			if err := tpl.ExecuteTemplate(w, "userEdit.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		switch resp.StatusCode {
+		case http.StatusNotFound:
+			ViewData.ProcessError = true
+		case http.StatusInternalServerError:
+			ViewData.ProcessError = true
+		default:
+			ViewData.ProcessSuccess = true
+			loggedInUser, err = authenticationCheck(w, r)
+			if err != nil {
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
+			ViewData.LoggedInUser = loggedInUser
+		}
+
+	}
+
+	if err := tpl.ExecuteTemplate(w, "userEdit.gohtml", ViewData); err != nil {
 		log.Fatal.Fatalln(err)
 	}
 }

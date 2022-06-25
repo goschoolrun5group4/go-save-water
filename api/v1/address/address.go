@@ -7,4 +7,3 @@ import (
 func main() {
 	server.Start()
 }
-

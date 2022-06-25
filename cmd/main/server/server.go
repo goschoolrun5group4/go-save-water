@@ -24,6 +24,7 @@ func Start() {
 	router.HandleFunc("/login", login)
 	router.HandleFunc("/logout", logout)
 	router.HandleFunc("/address", address)
+	router.HandleFunc("/user/edit", userEdit)
 	router.HandleFunc("/dashboard", dashboard)
 	router.HandleFunc("/verification/{token}", verification)
 

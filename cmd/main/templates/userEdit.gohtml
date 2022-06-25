@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title>GoSaveWater - Edit User Info</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
+    <!-- Custom styles for this template -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/useredit.css">
+</head>
+<body>
+
+<header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">GoSaveWater</a>
+    <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="navbar-nav">
+        <div class="nav-item text-nowrap">
+            <a class="nav-link px-3 text-light" href="/logout">
+                <i data-feather="log-out"></i>
+                Sign out
+            </a>
+        </div>
+    </div>
+</header>
+
+<div class="container-fluid">
+    <div class="row">
+        <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" aria-current="page" href="/dashboard">
+                            <i data-feather="home"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i data-feather="droplet"></i>
+                            Water Usage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/user/edit">
+                            <i data-feather="user"></i>
+                            User Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i data-feather="map"></i>
+                            Address
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Hi, {{.LoggedInUser.firstName}} {{.LoggedInUser.lastName}}</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <button type="button" class="btn btn-sm btn-primary">
+                            <i data-feather="plus"></i>
+                            Add new Usage
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Start Here -->
+            <form class="form-userEdit row g-3" method="post">
+                <h1>Edit Profile</h1>
+                {{if .ProcessError}}
+                    <div class="alert alert-danger">Error updating user profile, try again later.</div>
+                {{end}}
+                {{if .ProcessSuccess}}
+                    <div class="alert alert-success">User profile updated successfully.</div>
+                {{end}}
+                <div class="col-md-6">
+                    <label class="form-label" for ="firstName">First name</label>
+                    <input class="form-control {{if .ErrValidateFirstName}}is-invalid{{end}}" type="text" id="firstName" name="firstName" value="{{.EditUserData.FirstName}}" maxlength="45">
+                    <div class="invalid-feedback">
+                        Please enter a valid first name<br/>(English only).
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for ="lastName">Last name</label>
+                    <input class="form-control {{if .ErrValidateLastName}}is-invalid{{end}}" type="text" id="lastName" name="lastName" value="{{.EditUserData.LastName}}" maxlength="45">
+                    <div class="invalid-feedback">
+                        Please enter a valid last name<br/>(English only).
+                    </div>
+                </div>
+
+                <!-- Removed Username -->
+
+                <div class="col-12">
+                    <label class="form-label" for ="emailAddr">Email</label>
+                    <input class="form-control {{if .ErrValidateEmail}}is-invalid{{end}}" type="email" id="emailAddr" name="emailAddr" placeholder="you@example.com" value="{{.EditUserData.Email}}" maxlength="100">
+                    <div class="invalid-feedback">
+                        Please enter a valid email address.
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for ="password">Password</label>
+                    <input class="form-control {{if .ErrValidatePassword}}is-invalid{{end}}" type="password" id="password" name="password" autocomplete="off">
+                    <div class="invalid-feedback">
+                        Your password is not strong enough. New passwords must:
+                        <ul>
+                            <li>Be at least 7 characters long</li>
+                            <li>Contain at least 1 upper case character</li>
+                            <li>Contain at least 1 lower case character</li>
+                            <li>Include at least one of the following special characters: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for ="confirmPassword">Confirm Password</label>
+                    <input class="form-control {{if .ComparePasswordFail }}is-invalid{{end}}" type="password" id="confirmPassword" name="confirmPassword" autocomplete="off">
+                    <div class="invalid-feedback">
+                        Passwords do not match. Please re-enter passwords.
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-lg btn-primary">Submit</button>
+                </div>
+            </form>
+            <!-- Content End Here -->
+        </main>
+    </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js" integrity="sha384-uO3SXW5IuS1ZpFPKugNNWqTZRRglnUJK6UAZ/gxOX80nxEkN9NcGZTftn6RzhGWE" crossorigin="anonymous"></script>
+<script src="/static/js/common.js"></script>
+
+</body>
+</html>
