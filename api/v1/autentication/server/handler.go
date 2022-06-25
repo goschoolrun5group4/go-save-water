@@ -11,31 +11,28 @@ import (
 
 	"go-save-water/pkg/log"
 
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type LoginUser struct {
-	UserID    int    `json:"userID,omitempty"`
-	Username  string `json:"username"`
-	Password  string `json:"password,omitempty"`
-	SessionID string `json:"sessionID,omitempty"`
-	ExpireDT  string `json:"expireDT,omitempty"`
+type UserInfo struct {
+	UserID         int    `json:"userID,omitempty"`
+	Username       string `json:"username"`
+	FirstName      string `json:"firstName,omitempty"`
+	LastName       string `json:"lastName,omitempty"`
+	Password       string `json:"password,omitempty"`
+	HashedPassword string `json:"hashedPassword,omitempty"`
+	Email          string `json:"email,omitempty"`
+	Role           string `json:"role,omitempty"`
+	SessionID      string `json:"sessionID,omitempty"`
+	ExpireDT       string `json:"expireDT,omitempty"`
+	AccountNumber  string `json:"accountNumber,omitempty"`
 }
 
-func signup(db *sql.DB) http.HandlerFunc {
+func signup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		type SignupUser struct {
-			Username       string `json:"username"`
-			FirstName      string `json:"firstName"`
-			LastName       string `json:"lastName"`
-			Password       string `json:"password,omitempty"`
-			HashedPassword string `json:"hashedPassword,omitempty"`
-			Email          string `json:"email"`
-			Role           string `json:"role,omitempty"`
-		}
-
-		var signupUser SignupUser
+		var signupUser UserInfo
 
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -108,7 +105,7 @@ func verification(db *sql.DB) http.HandlerFunc {
 		var (
 			verificationJson map[string]interface{}
 			userInfo         map[string]interface{}
-			loginUser        LoginUser
+			loginUser        UserInfo
 		)
 
 		reqBody, err := ioutil.ReadAll(r.Body)
@@ -181,7 +178,7 @@ func login(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var (
-			loginUser      LoginUser
+			loginUser      UserInfo
 			hashedPassword string
 			verified       bool
 			email          string
@@ -271,5 +268,31 @@ func logout(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+	}
+}
+
+func verifySession(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		sessionID := params["sessionID"]
+
+		var (
+			userInfo   UserInfo
+			accountNum sql.NullString
+		)
+		results := db.QueryRow("CALL spUserSessionGet(?)", sessionID)
+		err := results.Scan(&userInfo.UserID, &userInfo.Username, &userInfo.FirstName, &userInfo.LastName, &userInfo.Email, &userInfo.Role, &accountNum)
+
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - Not found"))
+			return
+		}
+
+		if accountNum.Valid {
+			userInfo.AccountNumber = accountNum.String
+		}
+
+		json.NewEncoder(w).Encode(userInfo)
 	}
 }

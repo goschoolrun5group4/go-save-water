@@ -15,6 +15,7 @@ import (
 func Start() {
 
 	db := dbConnect()
+	defer db.Close()
 
 	if err := http.ListenAndServe(com.GetEnvVar("PORT"), handlers(db)); err != nil {
 		log.Fatal.Fatalln("ListenAndServe: ", err)
@@ -27,10 +28,11 @@ func handlers(db *sql.DB) http.Handler {
 
 	std := alice.New(mw.ContentTypeHandler)
 
-	api.Handle("/signup", std.Then(signup(db))).Methods("POST")
+	api.Handle("/signup", std.Then(signup())).Methods("POST")
 	api.Handle("/login", std.Then(login(db))).Methods("POST")
 	api.Handle("/logout", std.Then(logout(db))).Methods("POST")
 	api.Handle("/verification", std.Then(verification(db))).Methods("POST")
+	api.Handle("/verify/{sessionID}", verifySession(db)).Methods("GET")
 
 	return router
 }
