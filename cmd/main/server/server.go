@@ -23,6 +23,12 @@ func Start() {
 	router.HandleFunc("/signup", signup)
 	router.HandleFunc("/login", login)
 	router.HandleFunc("/dashboard", dashboard)
+	router.HandleFunc("/usages", getUsages)
+	router.HandleFunc("/usage", getUsage)
+	router.HandleFunc("/getusage", getUsage)
+	router.HandleFunc("/addusage", addUsages)
+	router.HandleFunc("/updateusage/", updateUsage)
+	router.HandleFunc("/deleteusage", deleteUsage)
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 

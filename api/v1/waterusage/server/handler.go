@@ -41,7 +41,10 @@ func addUsage(db *sql.DB) http.HandlerFunc {
 
 			_, err = db.Query(query)
 			if err != nil {
-				log.Error.Println("Error retrieving information")
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte("404 - Not found"))
+				return
 			} else {
 				w.WriteHeader(http.StatusCreated)
 				w.Write([]byte("201 - Bill added successfully"))
@@ -69,7 +72,10 @@ func getUsages(db *sql.DB) http.HandlerFunc {
 			allUsage = append(allUsage, usage)
 
 			if err != nil {
-				log.Error.Println("Error retrieving information")
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte("404 - Not found"))
+				return
 			}
 		}
 		json.NewEncoder(w).Encode(allUsage)
@@ -88,7 +94,10 @@ func getUsage(db *sql.DB) http.HandlerFunc {
 		err := results.Scan(&usage.AccountNumber, &usage.BillDate, &usage.Consumption)
 
 		if err != nil {
-			log.Error.Println("Error retrieving information")
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - Not found"))
+			return
 		}
 
 		json.NewEncoder(w).Encode(usage)
@@ -100,6 +109,26 @@ func updateUsage(db *sql.DB) http.HandlerFunc {
 		params := mux.Vars(r)
 		accountNumber := params["accountNumber"]
 		oldBillDate := params["billDate"]
+
+		query := fmt.Sprintf("SELECT COUNT(*) FROM WaterUsage WHERE AccountNumber=%s AND BillDate='%s'", accountNumber, oldBillDate)
+		results := db.QueryRow(query)
+
+		var count int
+
+		err := results.Scan(&count)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
+		}
+
+		if count == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - Not found"))
+			return
+		}
+
 		var updatedUsage WaterUsage
 
 		reqBody, err := ioutil.ReadAll(r.Body)
@@ -112,14 +141,17 @@ func updateUsage(db *sql.DB) http.HandlerFunc {
 		newBillDate := updatedUsage.BillDate
 		newUsage := updatedUsage.Consumption
 
-		query := fmt.Sprintf("UPDATE WaterUsage SET BillDate='%s', Consumption='%s', ModifiedDT=now() WHERE AccountNumber=%s AND BillDate='%s'", newBillDate, newUsage, accountNumber, oldBillDate)
+		query = fmt.Sprintf("UPDATE WaterUsage SET BillDate='%s', Consumption='%s', ModifiedDT=now() WHERE AccountNumber=%s AND BillDate='%s'", newBillDate, newUsage, accountNumber, oldBillDate)
 		_, err = db.Query(query)
 		if err != nil {
-			log.Error.Println("Error updating information")
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
 		}
 
 		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte("201 - Bill Date: " + newBillDate + "Usage: " + newUsage + "successfully updated."))
+		w.Write([]byte("201 - Update Successful"))
 	}
 }
 
@@ -129,10 +161,32 @@ func deleteUsage(db *sql.DB) http.HandlerFunc {
 		accountNumber := params["accountNumber"]
 		billDate := params["billDate"]
 
-		query := fmt.Sprintf("DELETE FROM WaterUsage WHERE BillDate='%s' AND AccountNumber=%s", billDate, accountNumber)
-		_, err := db.Query(query)
+		query := fmt.Sprintf("SELECT COUNT(*) FROM WaterUsage WHERE AccountNumber=%s AND BillDate='%s'", accountNumber, billDate)
+		results := db.QueryRow(query)
+
+		var count int
+
+		err := results.Scan(&count)
 		if err != nil {
-			log.Error.Println("Error retrieving information")
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
+		}
+
+		if count == 0 {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - Not found"))
+			return
+		}
+
+		query = fmt.Sprintf("DELETE FROM WaterUsage WHERE BillDate='%s' AND AccountNumber=%s", billDate, accountNumber)
+		_, err = db.Query(query)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
 		}
 
 		w.WriteHeader(http.StatusAccepted)
