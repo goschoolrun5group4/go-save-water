@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -210,7 +211,7 @@ func verification(w http.ResponseWriter, r *http.Request) {
 		} else {
 			cookie := createNewSecureCookie(uuid, expireDT)
 			http.SetCookie(w, cookie)
-			http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+			http.Redirect(w, r, "/setup", http.StatusSeeOther)
 			return
 		}
 	}
@@ -373,10 +374,7 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if loggedInUser["accountNumber"] == nil {
-		ViewData.UpdateAddress = true
-		if err := tpl.ExecuteTemplate(w, "dashboard.gohtml", ViewData); err != nil {
-			log.Fatal.Fatalln(err)
-		}
+		http.Redirect(w, r, "/setup", http.StatusSeeOther)
 		return
 	}
 
@@ -404,71 +402,160 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func address(w http.ResponseWriter, r *http.Request) {
+func setup(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
 
-	type AddressInfo struct {
-		PostalCode   string `json:"postalCode"`
-		Floor        string `json:"floor"`
-		UnitNumber   string `json:"unitNumber"`
-		BuildingName string `json:"buildingName"`
-		BlockNumber  string `json:"blockNumber"`
-		Street       string `json:"street"`
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
 	}
 
+	type AddressInfo struct {
+		UserID        int    `json:"userID"`
+		AccountNumber int    `json:"accountNumber"`
+		PostalCode    string `json:"postalCode"`
+		Floor         string `json:"floor"`
+		UnitNumber    string `json:"unitNumber"`
+		BuildingName  string `json:"buildingName,omitempty"`
+		BlockNumber   string `json:"blockNumber"`
+		Street        string `json:"street"`
+	}
+
+	type WaterUsage struct {
+		AccountNumber int    `json:"accountNumber"`
+		BillDate      string `json:"billDate"`
+		Consumption   string `json:"consumption"`
+	}
+
+	var (
+		addressInfo AddressInfo
+		usage       WaterUsage
+	)
+
 	ViewData := struct {
-		AddressInfo  AddressInfo
-		Error        bool
-		ValidateFail bool
+		Error                   bool
+		ValidateConsumptionFail bool
 	}{
-		AddressInfo{},
 		false,
 		false,
 	}
 
 	if r.Method == http.MethodPost {
-		ViewData.AddressInfo.PostalCode = r.FormValue("postalCode")
-		ViewData.AddressInfo.Floor = r.FormValue("floor")
-		ViewData.AddressInfo.UnitNumber = r.FormValue("unitNumber")
-		ViewData.AddressInfo.BuildingName = r.FormValue("buildingName")
-		ViewData.AddressInfo.BlockNumber = r.FormValue("blockNumber")
-		ViewData.AddressInfo.Street = r.FormValue("street")
-
-		if validator.IsEmpty(ViewData.AddressInfo.PostalCode) {
-			ViewData.ValidateFail = true
-		}
-
-		if ViewData.ValidateFail {
-			if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+		accountNum, err := strconv.Atoi(r.FormValue("accountNum"))
+		if err != nil {
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
 				log.Fatal.Fatalln(err)
 			}
 			return
 		}
 
-		jsonStr, err := json.Marshal(ViewData.AddressInfo)
-		if err != nil {
-			log.Error.Println(err)
+		// Address
+		addressInfo.UserID = int(loggedInUser["userID"].(float64))
+		addressInfo.AccountNumber = accountNum
+		addressInfo.PostalCode = r.FormValue("postalCode")
+		addressInfo.Floor = r.FormValue("floor")
+		addressInfo.UnitNumber = r.FormValue("unitNumber")
+		addressInfo.BuildingName = r.FormValue("buildingName")
+		addressInfo.BlockNumber = r.FormValue("blockNumber")
+		addressInfo.Street = r.FormValue("street")
+		// Usage
+		usage.AccountNumber = accountNum
+		usage.BillDate = r.FormValue("billDate")
+		usage.Consumption = r.FormValue("consumption")
+
+		// Check if Consumption is valid
+		if _, err := strconv.ParseFloat(r.FormValue("consumption"), 64); err != nil {
+			ViewData.ValidateConsumptionFail = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
 			return
 		}
 
-		url := com.GetEnvVar("API_AUTHENTICATION_ADDR") + "/address"
-		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-		req.Header.Set("Content-type", "application/json")
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
+		jsonStr, err := json.Marshal(addressInfo)
 		if err != nil {
-			log.Error.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("500 - Internal Server Error"))
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		url := com.GetEnvVar("API_ADDRESS_ADDR") + "/address"
+		resp, err := postToApi(url, jsonStr)
+
+		if err != nil {
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
 			return
 		}
 
 		if resp.StatusCode == http.StatusInternalServerError {
 			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
 		}
+
+		jsonStr, err = json.Marshal(usage)
+		if err != nil {
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		url = com.GetEnvVar("API_USAGE_ADDR") + "/usage"
+		resp, err = postToApi(url, jsonStr)
+		if err != nil {
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if resp.StatusCode == http.StatusUnauthorized {
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if resp.StatusCode == http.StatusConflict {
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if resp.StatusCode == http.StatusUnprocessableEntity {
+			ViewData.Error = true
+			if err := tpl.ExecuteTemplate(w, "setup.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+		return
+
 	}
 
-	if err := tpl.ExecuteTemplate(w, "address.gohtml", nil); err != nil {
+	if err := tpl.ExecuteTemplate(w, "setup.gohtml", nil); err != nil {
 		log.Fatal.Fatalln(err)
 	}
 }

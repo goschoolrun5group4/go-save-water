@@ -15,15 +15,16 @@ import (
 )
 
 type AddressInfo struct {
-	AccountNumber int    `json:"accountNumber"`
-	PostalCode    string `json:"postalCode"`
-	Floor         string `json:"floor"`
-	UnitNumber    string `json:"unitNumber"`
-	BuildingName  string `json:"buildingName"`
-	BlockNumber   string `json:"blockNumber"`
-	Street        string `json:"street"`
-	CreatedDT     string `json:"createdDT"`
-	ModifiedDT    string `json:"modifiedDT"`
+	UserID        int     `json:"userID,omitempty"`
+	AccountNumber int     `json:"accountNumber"`
+	PostalCode    string  `json:"postalCode"`
+	Floor         string  `json:"floor"`
+	UnitNumber    string  `json:"unitNumber"`
+	BuildingName  string  `json:"buildingName"`
+	BlockNumber   string  `json:"blockNumber"`
+	Street        string  `json:"street"`
+	CreatedDT     string  `json:"createdDT"`
+	ModifiedDT    *string `json:"modifiedDT"`
 }
 
 func createAddress(db *sql.DB) http.HandlerFunc {
@@ -41,26 +42,25 @@ func createAddress(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			Floor := newAddress.Floor
-			UnitNumber := newAddress.UnitNumber
-			BuildingName := newAddress.BuildingName
-			BlockNumber := newAddress.BlockNumber
-			Street := newAddress.Street
-			CreatedDt := time.Now().Format(time.RFC3339)
-			ModifiedDt := CreatedDt
-
-			query := fmt.Sprintf(
-				"INSERT INTO Address VALUES (NULL, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
-				PostalCode, Floor, UnitNumber, BuildingName, BlockNumber, CreatedDt, ModifiedDt, Street)
-			_, err := db.Query(query)
+			_, err := db.Query("CALL spAddressCreate(?, ?, ?, ?, ?, ?, ?, ?)",
+				newAddress.UserID,
+				newAddress.AccountNumber,
+				newAddress.PostalCode,
+				newAddress.Floor,
+				newAddress.UnitNumber,
+				newAddress.BuildingName,
+				newAddress.BlockNumber,
+				newAddress.Street,
+			)
 			if err != nil {
-				panic(err.Error())
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Internal Server Error"))
+				return
 			}
 
-			lastId := fmt.Sprintf("SELECT LAST_INSERT_ID()")
-
 			w.WriteHeader(http.StatusCreated)
-			w.Write([]byte("201 - Address Account Number: " + lastId + " added successfully"))
+			w.Write([]byte("201 - Address Account Number: " + strconv.Itoa(newAddress.AccountNumber) + " added successfully"))
 		}
 	}
 }

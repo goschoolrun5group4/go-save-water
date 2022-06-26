@@ -77,18 +77,12 @@
             <!-- Content Start Here -->
             <input type="hidden" id="userConsumption" value="{{.UserUsage}}">
             <input type="hidden" id="nationalConsumption" value="{{.NationalUsage}}">
-            {{if .UpdateAddress}}
+            {{if eq .UserUsage "null"}}
                 <div class="alert alert-warning" role="alert">
-                    You have not created your address, please create your address first.
+                    Please create new usage to start tracking your usage.
                 </div>
             {{else}}
-                {{if eq .UserUsage "null"}}
-                    <div class="alert alert-warning" role="alert">
-                        Please create new usage to start tracking your usage.
-                    </div>
-                {{else}}
-                    <canvas class="my-4 w-100" id="myChart" width="900" height="380"></canvas>
-                {{end}}
+                <canvas class="my-4 w-100" id="myChart" width="900" height="380"></canvas>
             {{end}}
             <!-- Content End Here -->
         </main>

@@ -40,16 +40,15 @@ func addUsage(db *sql.DB) http.HandlerFunc {
 
 		query := fmt.Sprintf("INSERT INTO WaterUsage (AccountNumber, BillDate, Consumption, ImageURL, CreatedDT, ModifiedDT) VALUES(%d, '%s', %s, null, now(), null)", AccountNumber, BillDate, Consumption)
 
-			_, err = db.Query(query)
-			if err != nil {
-				log.Error.Println(err)
-				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte("404 - Not found"))
-				return
-			} else {
-				w.WriteHeader(http.StatusCreated)
-				w.Write([]byte("201 - Bill added successfully"))
-			}
+		_, err = db.Query(query)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - Not found"))
+			return
+		} else {
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte("201 - Bill added successfully"))
 		}
 	}
 }

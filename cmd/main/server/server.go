@@ -23,7 +23,7 @@ func Start() {
 	router.HandleFunc("/signup", signup)
 	router.HandleFunc("/login", login)
 	router.HandleFunc("/logout", logout)
-	router.HandleFunc("/address", address)
+	router.HandleFunc("/setup", setup)
 	router.HandleFunc("/address/edit", addressEdit)
 	router.HandleFunc("/user/edit", userEdit)
 	router.HandleFunc("/dashboard", dashboard)
@@ -33,7 +33,7 @@ func Start() {
 	router.HandleFunc("/addusage", addUsages)
 	router.HandleFunc("/updateusage", updateUsage)
 	router.HandleFunc("/deleteusage", deleteUsage)
-  router.HandleFunc("/verification/{token}", verification)
+	router.HandleFunc("/verification/{token}", verification)
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
