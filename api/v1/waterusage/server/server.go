@@ -3,12 +3,15 @@ package server
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
+
 	com "go-save-water/pkg/common"
 	"go-save-water/pkg/log"
-	"net/http"
+	mw "go-save-water/pkg/middleware"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 )
 
 var (
@@ -37,11 +40,15 @@ func handlers(db *sql.DB) http.Handler {
 	router := mux.NewRouter()
 	api := router.PathPrefix("/api/v1").Subrouter()
 
-	api.Handle("/usages/{accountNumber}", getUsages(db)).Methods("GET")
-	api.Handle("/usage/{accountNumber}/{billDate}", getUsage(db)).Methods("GET")
-	api.Handle("/usage", addUsage(db)).Methods("POST")
-	api.Handle("/usage/{accountNumber}/{billDate}", updateUsage(db)).Methods("PUT")
-	api.Handle("/usage/{accountNumber}/{billDate}", deleteUsage(db)).Methods("DELETE")
+	std := alice.New(mw.ContentTypeHandler)
+
+	api.Handle("/usages/user/{accountNumber}", getUsages(db)).Methods("GET")
+	api.Handle("/usage/user/{accountNumber}/{billDate}", getUsage(db)).Methods("GET")
+	api.Handle("/usage", std.Then(addUsage(db))).Methods("POST")
+	api.Handle("/usage/user/{accountNumber}/{billDate}", std.Then(updateUsage(db))).Methods("PUT")
+	api.Handle("/usage/user/{accountNumber}/{billDate}", deleteUsage(db)).Methods("DELETE")
+	api.Handle("/usage/user/{accountNumber}/latest/{numOfMths}", getUsageByLatestMonths(db)).Methods("GET")
+	api.Handle("/usage/national/latest/{numOfMths}", getNationalUsageByLatestMonths(db)).Methods("GET")
 
 	return router
 }

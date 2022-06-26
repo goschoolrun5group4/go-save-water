@@ -11,33 +11,28 @@ import (
 
 	"go-save-water/pkg/log"
 
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func signup(db *sql.DB) http.HandlerFunc {
+type UserInfo struct {
+	UserID         int    `json:"userID,omitempty"`
+	Username       string `json:"username"`
+	FirstName      string `json:"firstName,omitempty"`
+	LastName       string `json:"lastName,omitempty"`
+	Password       string `json:"password,omitempty"`
+	HashedPassword string `json:"hashedPassword,omitempty"`
+	Email          string `json:"email,omitempty"`
+	Role           string `json:"role,omitempty"`
+	SessionID      string `json:"sessionID,omitempty"`
+	ExpireDT       string `json:"expireDT,omitempty"`
+	AccountNumber  string `json:"accountNumber,omitempty"`
+}
+
+func signup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		type SignupUser struct {
-			Username       string `json:"username"`
-			FirstName      string `json:"firstName"`
-			LastName       string `json:"lastName"`
-			Password       string `json:"password,omitempty"`
-			HashedPassword string `json:"hashedPassword,omitempty"`
-			Email          string `json:"email"`
-			Role           string `json:"role,omitempty"`
-		}
-
-		type LoginUser struct {
-			UserID    int    `json:"userID"`
-			Username  string `json:"username"`
-			SessionID string `json:"sessionID"`
-			ExpireDT  string `json:"expireDT"`
-		}
-
-		var (
-			signupUser SignupUser
-			loginUser  LoginUser
-		)
+		var signupUser UserInfo
 
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -64,7 +59,9 @@ func signup(db *sql.DB) http.HandlerFunc {
 		// Call User Create API
 		jsonStr, err := json.Marshal(signupUser)
 		if err != nil {
-			fmt.Println(err)
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
 			return
 		}
 
@@ -99,8 +96,71 @@ func signup(db *sql.DB) http.HandlerFunc {
 			w.Write([]byte("500 - Internal Server Error"))
 		}
 
+	}
+}
+
+func verification(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var (
+			verificationJson map[string]interface{}
+			userInfo         map[string]interface{}
+			loginUser        UserInfo
+		)
+
+		reqBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Server Error"))
+			return
+		}
+
+		// convert JSON to object
+		json.Unmarshal(reqBody, &verificationJson)
+
+		// Check if user Exist
+		url := com.GetEnvVar("API_USER_ADDR") + "/user/email/" + verificationJson["email"].(string)
+		body, statusCode, err := com.FetchData(url)
+		if err != nil {
+			log.Error.Println(err)
+			if statusCode == http.StatusNotFound {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte("404 - Not found"))
+				return
+			}
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
+		}
+		json.Unmarshal(body, &userInfo)
+
+		if !userInfo["verified"].(bool) {
+			// Update User
+			jsonStr := "{\"verified\":true}"
+
+			url = fmt.Sprintf("%s/user/%.0f", com.GetEnvVar("API_USER_ADDR"), userInfo["userID"])
+			req, err := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(jsonStr)))
+			req.Header.Set("Content-type", "application/json")
+
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Error.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Internal Server Error"))
+				return
+			}
+
+			if resp.StatusCode != http.StatusAccepted {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("500 - Internal Server Error"))
+				return
+			}
+		}
+
 		// Process Session Data, delete old session if multiple sessions are detected.
-		result := db.QueryRow("CALL spUserSessionCreate(?)", signupUser.Username)
+		result := db.QueryRow("CALL spUserSessionCreate(?)", userInfo["username"].(string))
 		err = result.Scan(&loginUser.UserID, &loginUser.Username, &loginUser.SessionID, &loginUser.ExpireDT)
 		// If user don't exist
 		if err != nil {
@@ -117,17 +177,11 @@ func signup(db *sql.DB) http.HandlerFunc {
 func login(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		type LoginUser struct {
-			UserID    int    `json:"userID,omitempty"`
-			Username  string `json:"username"`
-			Password  string `json:"password,omitempty"`
-			SessionID string `json:"sessionID,omitempty"`
-			ExpireDT  string `json:"expireDT,omitempty"`
-		}
-
 		var (
-			loginUser      LoginUser
+			loginUser      UserInfo
 			hashedPassword string
+			verified       bool
+			email          string
 		)
 
 		reqBody, err := ioutil.ReadAll(r.Body)
@@ -143,12 +197,20 @@ func login(db *sql.DB) http.HandlerFunc {
 
 		// Get user password from DB
 		result := db.QueryRow("CALL spAuthenticationGet(?)", loginUser.Username)
-		err = result.Scan(&hashedPassword)
+		err = result.Scan(&hashedPassword, &verified, &email)
 		// If user don't exist
 		if err != nil {
 			log.Error.Println(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("Incorrect username or password."))
+			return
+		}
+
+		// If user is not verified
+		if !verified {
+			w.WriteHeader(http.StatusBadRequest)
+			ret := fmt.Sprintf("{\"email\":\"%s\"}", email)
+			w.Write([]byte(ret))
 			return
 		}
 
@@ -206,5 +268,31 @@ func logout(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+	}
+}
+
+func verifySession(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		sessionID := params["sessionID"]
+
+		var (
+			userInfo   UserInfo
+			accountNum sql.NullString
+		)
+		results := db.QueryRow("CALL spUserSessionGet(?)", sessionID)
+		err := results.Scan(&userInfo.UserID, &userInfo.Username, &userInfo.FirstName, &userInfo.LastName, &userInfo.Email, &userInfo.Role, &accountNum)
+
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("404 - Not found"))
+			return
+		}
+
+		if accountNum.Valid {
+			userInfo.AccountNumber = accountNum.String
+		}
+
+		json.NewEncoder(w).Encode(userInfo)
 	}
 }
