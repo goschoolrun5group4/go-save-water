@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    {{ template "header" }}
+    <link rel="stylesheet" href="static/css/address.css" />
+    <title>GoSaveWater - Address</title>
+  </head>
+  <body>
+    <main class="form-address">
+      <form class="form-dashboard row g-3" method="post">
+        {{if .Error}}
+          <div class="alert alert-danger">Error processing your request, try again later.</div>
+        {{end}}
+        <h1 class="h3 mb-3 fw-normal">Please Enter Your Address</h1>
+        <div class="col-6">
+          <label class="form-label" for ="blockNumber">Block/House No.</label>
+          <input class="form-control" type="text" id="blockNumber" name="blockNumber" readonly>
+        </div>
+        <div class="col-6">
+          <label class="form-label" for ="buildingName">Building Name</label>
+          <input class="form-control" type="text" id="buildingName" name="buildingName" readonly>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for ="floor">Floor No.</label>
+          <input class="form-control" type="number" id="floor" name="floor" maxlength="6">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for ="unitNumber">Unit No.</label>
+          <input class="form-control" type="number" id="unitNumber" name="unitNumber" maxlength="6">
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="postalCode">Postal Code</label>
+          <div class="input-group mb-3">
+            <input class="form-control" type="number" id="postalCode" name="postalCode" maxlength="6" required/>
+            <div class="input-group-append">
+              <button class="btn btn-primary" id="apiCall">Retrieve</button>
+            </div>
+            <div class="invalid-feedback">
+              Please enter a valid Postal Code.
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="street">Street Name</label>
+          <input class="form-control" type="text" id="street" name="street" readonly/>
+          <br/>
+        </div>
+        <hr class="my-4">
+        <h1 class="h3 mb-3 fw-normal">Add Your Latest Water Usage</h1>
+        <div class="col-12">
+          <label class="form-label" for ="accountNum">Account Number</label>
+          <input class="form-control" type="number" id="accountNum" name="accountNum" required>
+          <small id="accountNumHelp" class="form-text text-muted">Account Number can be found in your <a target="_blank" href="https://www.spgroup.com.sg/wcm/connect/spgrp/483eed98-b552-47c0-845b-42b8df5c7745/%5BInfo%5D+Understanding+Your+Utilities+Bill+%2828+Mar+21%29.pdf?MOD=AJPERES">bill</a> under the payment details.</small>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for ="billDate">Bill Date</label>
+          <input class="form-control" type="date" id="billDate" name="billDate" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for ="consumption">Usage Amount (Cu M)</label>
+          <input class="form-control {{if .ValidateConsumptionFail}}is-invalid{{end}}" type="text" id="consumption" name="consumption" placeholder="Cubic Meter" required>
+          <div class="invalid-feedback">
+            Please enter a valid value.
+          </div>
+        </div>
+        <hr class="my-4">
+        <div class="col-12">
+          <button type="submit" id="formSubmit" class="btn btn-lg btn-primary">Submit</button>
+        </div>
+      </form>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+    <script src="/static/js/address.js"></script>
+    <script src="/static/js/setup.js"></script>
+  </body>
+</html>

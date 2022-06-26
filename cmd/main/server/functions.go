@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -201,4 +202,21 @@ func getNationalUsage(chn chan string) {
 	} else {
 		chn <- string(jString)
 	}
+}
+
+func postToApi(url string, jsonStr []byte) (*http.Response, error) {
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	if err != nil {
+		log.Error.Println(err)
+		return nil, err
+	}
+	req.Header.Set("Content-type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error.Println(err)
+		return nil, err
+	}
+	return resp, nil
 }
