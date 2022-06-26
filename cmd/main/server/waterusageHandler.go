@@ -10,23 +10,18 @@ import (
 	"net/http"
 )
 
-var (
-	mapSessions = map[string]string{}
-	mapUser     = map[string]User{}
-)
-
-type User struct {
-	AccountNumber string
-	Password      string
-	IsAdmin       bool
-}
-
 func getUsages(w http.ResponseWriter, r *http.Request) {
+	type Results struct {
+		AccountNumber int
+		BillDate      string
+		Consumption   string
+	}
+
 	viewData := struct {
-		Error     bool
-		ErrorMsg  string
-		ClientMsg string
-		Results   map[string]interface{}
+		Error       bool
+		ErrorMsg    string
+		ClientMsg   string
+		ShowResults []Results
 	}{
 		false,
 		"",
@@ -36,8 +31,15 @@ func getUsages(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		accountNumber := r.FormValue("accountNumber")
-		url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usage/%s", accountNumber)
-		res, err := http.Get(url)
+
+		url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usages/%s", accountNumber)
+		req, err := http.NewRequest("GET", url, nil)
+
+		client := &http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			log.Error.Println(err)
+		}
 
 		if err != nil {
 			viewData.Error = true
@@ -66,14 +68,15 @@ func getUsages(w http.ResponseWriter, r *http.Request) {
 				viewData.Error = true
 				viewData.ErrorMsg = "Internal server error"
 			} else {
-				json.Unmarshal(body, &viewData.Results)
+				json.Unmarshal(body, &viewData.ShowResults)
+				fmt.Println(viewData.ShowResults)
 
 				if err != nil {
 					viewData.Error = true
 					viewData.ErrorMsg = "Internal server error"
 				} else {
 					res.StatusCode = http.StatusAccepted
-					viewData.ClientMsg = fmt.Sprintf("Date Found")
+					viewData.ClientMsg = fmt.Sprintf("User Found")
 				}
 			}
 		}
@@ -135,7 +138,6 @@ func getUsage(w http.ResponseWriter, r *http.Request) {
 				viewData.Error = true
 				viewData.ErrorMsg = "Internal server error"
 			} else {
-				//var checkUsage map[string]interface{}
 				json.Unmarshal(body, &viewData.Usage)
 
 				if err != nil {

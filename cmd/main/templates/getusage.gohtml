@@ -6,13 +6,10 @@
   </head>
   <body>
     <main class="form-waterusage">
-      <h1 class="h3 mb-3 fw-normal">View all Usages</h1>
+      <h1 class="h3 mb-3 fw-normal">Search Usages</h1>
       <form id="waterUsageForm" class="row g-3" method="post">
       {{if .Error}}
         <div class="alert alert-danger">{{.ErrorMsg}}</div>
-      {{end}}
-      {{if not .Error}}
-        <div class="alert alert-success">Account Number:{{.Usage.accountNumber}} Date: {{.Usage.billDate}} Usage: {{.Usage.consumption}}</div>
       {{end}}
         <div class="col-12">
             <label class="form-label" for ="accountNumber">Account Number</label>
@@ -22,6 +19,9 @@
             <label class="form-label" for ="searchDate">Search Date</label>
             <input class="form-control" type="text" id="searchDate" name="searchDate" placeholder="YYYY-MM-DD">
         </div>
+        {{if not .Error}}
+          <div class="alert alert-success">Account Number:{{.Usage.accountNumber}} Date: {{.Usage.billDate}} Usage: {{.Usage.consumption}}</div>
+        {{end}}
           <br/>
           <button class="btn btn-lg btn-secondary btn-previous" onclick="history.back()">
             Previous
