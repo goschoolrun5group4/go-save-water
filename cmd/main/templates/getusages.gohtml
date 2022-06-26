@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="static/css/address.css" />
+    <title>GoSaveWater - Water Usage</title>
+  </head>
+  <body>
+    <main class="form-waterusage">
+      <h1 class="h3 mb-3 fw-normal">View all Usages</h1>
+      <form id="waterUsageForm" class="row g-3" method="post">
+      {{if .Error}}
+        <div class="alert alert-danger">{{.ErrorMsg}}</div>
+      {{end}}
+        <div class="col-12">
+            <label class="form-label" for ="accountNumber">Account Number</label>
+            <input class="form-control" type="text" id="accountNumber" name="accountNumber" placeholder="Account Number">
+        </div>
+        <br/>
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">Account Number</th>
+              <th scope="col">Date</th>
+              <th scope="col">Usage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .ShowResults}}
+            <tr>
+              <th scope="row"></th>
+              <td>{{.AccountNumber}}</td>
+              <td>{{.BillDate}}</td>
+              <td>{{.Consumption}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+
+          <br/>
+          <button class="btn btn-lg btn-secondary btn-previous" onclick="history.back()">
+            Previous
+          </button>
+          <button type="submit" class="btn btn-lg btn-primary btn-next">
+            Next
+          </button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
