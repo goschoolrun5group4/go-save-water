@@ -2,44 +2,62 @@
 <html lang="en">
   <head>
     {{ template "header" }}
-    <link rel="stylesheet" href="static/css/address.css" />
+    <link rel="stylesheet" href="static/css/address.css"/>
     <title>GoSaveWater - Address</title>
   </head>
   <body>
     <main class="form-address">
       <h1 class="h3 mb-3 fw-normal">Create New Address</h1>
+      {{if .ValidateFail }}
+          <div class="alert alert-danger">Missing Postal Code</div>
+      {{end}}
+      {{if .PostalCodeIsNotSix }}
+          <div class="alert alert-danger">Please provide 6-digit postal code</div>
+      {{end}}
+      {{if .PostalCodeFail }}
+          <div class="alert alert-danger">Invalid Postal Code</div>
+      {{end}}
       <form id="addressForm" class="row g-3" method="post">
-        <div class="col-12">
-            <label class="form-label" for ="blockNumber">Block/House No.</label>
-            <input class="form-control" type="text" id="blockNumber" name="blockNumber" value="{{.AddressInfo.BlockNumber}}" maxlength="6">
+        <div class="col-md-4">
+          <label class="form-label" for="blockNumber">Block/House No.</label>
+          <input class="form-control" type="text" id="blockNumber" name="blockNumber" value="{{.AddressInfo.BlockNumber}}" maxlength="6">
         </div>
-        <div class="col-md-6">
-            <label class="form-label" for ="floor">Floor No.</label>
-            <input class="form-control" type="text" id="floor" name="floor" value="{{.AddressInfo.Floor}}" maxlength="6">
+        <div class="col-md-4">
+          <label class="form-label" for="floor">Floor No.</label>
+          <input class="form-control" type="text" id="floor" name="floor" value="{{.AddressInfo.Floor}}" maxlength="6">
         </div>
-        <div class="col-md-6">
-            <label class="form-label" for ="unitNumber">Unit No.</label>
-            <input class="form-control" type="text" id="unitNumber" name="unitNumber" value="{{.AddressInfo.UnitNumber}}" maxlength="6">
+        <div class="col-md-4">
+          <label class="form-label" for="unitNumber">Unit No.</label>
+          <input class="form-control" type="text" id="unitNumber" name="unitNumber" value="{{.AddressInfo.UnitNumber}}" maxlength="6">
         </div>
-        <div class="col-12">
+        <div class="col-11">
           <label class="form-label required" for="postalCode">Postal Code</label>
-          <input class="form-control" type="text" id="postalCode" name="postalCode" value="{{.AddressInfo.PostalCode}}" maxlength="6" required/>
+          <input class="form-control" type="text" id="postalCode" name="postalCode" value="{{.AddressInfo.PostalCode}}" maxlength="6" required="required"/>
           <br/>
         </div>
-        <div class="col-12">
-          <label class="form-label" for="street">Street Name</label>
-          <input class="form-control" type="text" id="street" name="street" value="{{.AddressInfo.Street}}" maxlength="256"/>
-          <br/>
-        </div>
-        <div class="col-12">
-          <button class="btn btn-lg btn-secondary btn-previous" onclick="history.back()">
-            Previous
-          </button>
-          <button type="submit" class="btn btn-lg btn-primary btn-next">
-            Next
+        <div class="col-1 p-0">
+          <button type="submit" class="btn btn-md btn-secondary btn-search">
+            <i class="fa fa-search"></i>
           </button>
         </div>
-      </form>
-    </main>
-  </body>
-</html>
+        <div class="col-12 mt-0">
+          <div class="col-12">
+            <label class="form-label" for="street">Building Name</label>
+            <input class="form-control" type="text" id="buildingName" name="buildingName" value="{{.AddressInfo.BuildingName}}" maxlength="256"/>
+            <br/>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="street">Street Name</label>
+            <input class="form-control" type="text" id="street" name="street" value="{{.AddressInfo.Street}}" maxlength="256"/>
+            <br/>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-md btn-primary btn-next">
+              Next
+            </button>
+          </div>
+        </div>
+        </form>
+      </main>
+    </body>
+  </html>

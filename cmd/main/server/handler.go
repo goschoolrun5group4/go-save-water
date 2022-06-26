@@ -416,11 +416,15 @@ func address(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ViewData := struct {
-		AddressInfo  AddressInfo
-		Error        bool
-		ValidateFail bool
+		AddressInfo           AddressInfo
+		Error                 bool
+		ValidateFail          bool
+		PostalCodeFail				bool
+		PostalCodeIsNotSix			  bool
 	}{
 		AddressInfo{},
+		false,
+		false,
 		false,
 		false,
 	}
@@ -435,9 +439,70 @@ func address(w http.ResponseWriter, r *http.Request) {
 
 		if validator.IsEmpty(ViewData.AddressInfo.PostalCode) {
 			ViewData.ValidateFail = true
+			if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
 		}
 
-		if ViewData.ValidateFail {
+		if len(ViewData.AddressInfo.PostalCode) != 6 {
+			ViewData.PostalCodeIsNotSix = true
+			if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if !ViewData.PostalCodeFail {
+			url := fmt.Sprintf("https://developers.onemap.sg/commonapi/search?searchVal='%s'&returnGeom=Y&getAddrDetails=Y", ViewData.AddressInfo.PostalCode)
+			if resp, err := http.Get(url); err == nil {
+				defer resp.Body.Close()
+				if body, err := ioutil.ReadAll(resp.Body); err == nil {
+					var response map[string] interface{}
+					json.Unmarshal([]byte(body), &response)
+
+					if int(response["found"].(float64)) == 0 {
+						ViewData.PostalCodeFail = true
+						if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+							log.Fatal.Fatalln(err)
+						}
+						return
+					}
+
+					results := response["results"]
+					for _, result := range results.([]interface{}) {
+						if blockNumber, ok := result.(map[string]interface{})["BLK_NO"].(string); ok {
+						   ViewData.AddressInfo.BlockNumber = blockNumber
+						}
+
+						if buildingName, ok := result.(map[string]interface{})["BUILDING"].(string); ok {
+							if buildingName == "NIL" {
+								ViewData.AddressInfo.BuildingName = " "
+							} else {
+								ViewData.AddressInfo.BuildingName = buildingName
+							}
+						}
+
+						if street, ok := result.(map[string]interface{})["ROAD_NAME"].(string); ok {
+						   ViewData.AddressInfo.Street = street
+						}
+
+						if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+							log.Fatal.Fatalln(err)
+						}
+						return
+					}
+				}
+			} else {
+				ViewData.PostalCodeFail = true
+				if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
+					log.Fatal.Fatalln(err)
+				}
+				return
+			}
+		}
+
+		if ViewData.ValidateFail || ViewData.PostalCodeFail {
 			if err := tpl.ExecuteTemplate(w, "address.gohtml", ViewData); err != nil {
 				log.Fatal.Fatalln(err)
 			}
