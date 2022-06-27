@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <head>
+    {{ template "header" }}
     <title>GoSaveWater</title>
-</head>
-<body>
-    <h1>Hello World</h1>
-</body>
+    <link rel="stylesheet" href="/static/css/index.css" />
+  </head>
+  <body>
+    <div class="welcome">
+      <img src="/static/image/logo.jpeg" alt="Logo" class="" />
+      <button class="btn btn-lg btn-secondary btn-previous">
+        <a href="/login" class="btn">Log In</a>
+      </button>
+      <button class="btn btn-lg btn-primary btn-next">
+        <a href="/signup" class="btn">Sign Up</a>
+      </button>
+    </div>
+  </body>
 </html>

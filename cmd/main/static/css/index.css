@@ -1,0 +1,20 @@
+body {
+  background-color: white;
+}
+
+.welcome {
+  width: 100%;
+  max-width: 480px;
+  padding: 15px;
+  margin: auto;
+}
+
+.btn {
+  text-decoration: none;
+  color: white;
+  padding: 0.5rem 1rem;
+}
+
+.btn:hover {
+  color: white;
+}
