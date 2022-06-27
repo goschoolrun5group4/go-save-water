@@ -58,7 +58,7 @@ func getUsages(db *sql.DB) http.HandlerFunc {
 		params := mux.Vars(r)
 		accountNumber := params["accountNumber"]
 		var allUsage []WaterUsage
-		query := fmt.Sprintf("SELECT AccountNumber, BillDate, Consumption FROM WaterUsage WHERE AccountNumber=%s", accountNumber)
+		query := fmt.Sprintf("SELECT AccountNumber, BillDate, Consumption FROM WaterUsage WHERE AccountNumber=%s ORDER BY BillDate DESC", accountNumber)
 		results, err := db.Query(query)
 
 		if err != nil {

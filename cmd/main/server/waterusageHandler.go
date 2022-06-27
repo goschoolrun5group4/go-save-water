@@ -8,6 +8,7 @@ import (
 	"go-save-water/pkg/log"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 func getUsages(w http.ResponseWriter, r *http.Request) {
@@ -88,71 +89,175 @@ func getUsages(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUsage(w http.ResponseWriter, r *http.Request) {
-	viewData := struct {
-		Error     bool
-		ErrorMsg  string
-		ClientMsg string
-		Usage     map[string]interface{}
+
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	ViewData := struct {
+		LoggedInUser            map[string]interface{}
+		Usage                   UserUsage
+		Usages                  []UserUsage
+		ValidateConsumptionFail bool
+		ValidateBillDateFail    bool
+		ProcessError            bool
+		ProcessErrorMsg         string
+		ProcessFormError        bool
+		ProcessFormErrorMsg     string
+		ProcessFormSuccess      bool
 	}{
+		loggedInUser,
+		UserUsage{},
+		nil,
+		false,
+		false,
 		false,
 		"",
+		false,
 		"",
-		nil,
+		false,
+	}
+
+	tplName := "usage.gohtml"
+
+	url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usages/user/%s", loggedInUser["accountNumber"].(string))
+	body, _, err := com.FetchData(url)
+	if err != nil {
+		log.Error.Println(err)
+		ViewData.ProcessError = true
+		ViewData.ProcessErrorMsg = "Error getting past water usage."
+		if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+			log.Fatal.Fatalln(err)
+		}
+	}
+
+	err = json.Unmarshal(body, &ViewData.Usages)
+	if err != nil {
+		log.Error.Println(err)
+		ViewData.ProcessError = true
+		ViewData.ProcessErrorMsg = "Error getting past water usage."
+		if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+			log.Fatal.Fatalln(err)
+		}
 	}
 
 	if r.Method == http.MethodPost {
-		accountNumber := r.FormValue("accountNumber")
-		searchDate := r.FormValue("searchDate")
+		accountNum, err := strconv.Atoi(loggedInUser["accountNumber"].(string))
+		if err != nil {
+			ViewData.ProcessFormError = true
+			ViewData.ProcessErrorMsg = "Error processing form."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+		// Usage
+		ViewData.Usage.AccountNumber = accountNum
+		ViewData.Usage.BillDate = r.FormValue("billDate")
+		ViewData.Usage.Consumption = r.FormValue("consumption")
 
-		url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usage/%s/%s", accountNumber, searchDate)
-		//jsonValue := fmt.Sprintf(`{"accountNumber":%s,"billDate":"%s"}`, accountNumber, searchDate)
+		validateFormFail := false
+		// Check if Consumption is valid
+		if _, err := strconv.ParseFloat(ViewData.Usage.Consumption, 64); err != nil {
+			ViewData.ValidateConsumptionFail = true
+			validateFormFail = true
+		}
 
-		req, err := http.NewRequest("GET", url, nil)
-		//req.Header.Set("Content-type", "application/json") sending json data
+		// Check if month year added
+		exists := searchIfDateExist(ViewData.Usages, ViewData.Usage.BillDate)
+		if exists {
+			ViewData.ValidateBillDateFail = true
+			validateFormFail = true
+		}
 
-		client := &http.Client{}
-		res, err := client.Do(req)
+		if validateFormFail {
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		jsonStr, err := json.Marshal(ViewData.Usage)
+		if err != nil {
+			ViewData.ProcessFormError = true
+			ViewData.ProcessErrorMsg = "Error processing form."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		url = com.GetEnvVar("API_USAGE_ADDR") + "/usage"
+		resp, err := postToApi(url, jsonStr)
+		if err != nil {
+			ViewData.ProcessFormError = true
+			ViewData.ProcessErrorMsg = "Error processing form."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if resp.StatusCode == http.StatusUnauthorized {
+			ViewData.ProcessFormError = true
+			ViewData.ProcessErrorMsg = "Error processing form."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if resp.StatusCode == http.StatusConflict {
+			ViewData.ProcessFormError = true
+			ViewData.ProcessErrorMsg = "Error processing form."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		if resp.StatusCode == http.StatusUnprocessableEntity {
+			ViewData.ProcessFormError = true
+			ViewData.ProcessErrorMsg = "Error processing form."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		ViewData.ProcessFormSuccess = true
+		url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usages/user/%s", loggedInUser["accountNumber"].(string))
+		body, _, err := com.FetchData(url)
 		if err != nil {
 			log.Error.Println(err)
+			ViewData.ProcessError = true
+			ViewData.ProcessErrorMsg = "Error getting past water usage."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
 		}
 
-		if res.StatusCode == http.StatusUnauthorized {
-			viewData.Error = true
-			viewData.ErrorMsg = "Unable to delete current selection"
-		}
-
-		if res.StatusCode == http.StatusUnprocessableEntity {
-			viewData.Error = true
-			viewData.ErrorMsg = "Please enter valid date"
-		}
-
-		if res.StatusCode == http.StatusNotFound {
-			viewData.Error = true
-			viewData.ErrorMsg = "Data not found"
-		}
-
-		if !viewData.Error {
-			body, err := ioutil.ReadAll(res.Body)
-			defer res.Body.Close()
-			if err != nil {
-				viewData.Error = true
-				viewData.ErrorMsg = "Internal server error"
-			} else {
-				json.Unmarshal(body, &viewData.Usage)
-
-				if err != nil {
-					viewData.Error = true
-					viewData.ErrorMsg = "Internal server error"
-				} else {
-					res.StatusCode = http.StatusAccepted
-					viewData.Error = false
-					viewData.ClientMsg = fmt.Sprintf("Date Found")
-				}
+		err = json.Unmarshal(body, &ViewData.Usages)
+		if err != nil {
+			log.Error.Println(err)
+			ViewData.ProcessError = true
+			ViewData.ProcessErrorMsg = "Error getting past water usage."
+			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
+				log.Fatal.Fatalln(err)
 			}
 		}
 	}
 
-	if err := tpl.ExecuteTemplate(w, "getusage.gohtml", viewData); err != nil {
+	if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
 		log.Fatal.Fatalln(err)
 	}
 }

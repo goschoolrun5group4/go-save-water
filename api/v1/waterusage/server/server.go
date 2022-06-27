@@ -24,13 +24,15 @@ var (
 func Start() {
 	connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", user, password, endpoint, database)
 	db, err := sql.Open("mysql", connectionString)
-	fmt.Println("Server started")
 
 	defer db.Close()
 
 	if err != nil {
 		log.Fatal.Fatalln("Error: Connection error")
 	}
+
+	log.Info.Println("Server Start")
+
 	if err = http.ListenAndServe(com.GetEnvVar("PORT"), handlers(db)); err != nil {
 		log.Fatal.Fatalln("ListenAndServe: ", err)
 	}

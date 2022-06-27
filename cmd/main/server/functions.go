@@ -24,6 +24,12 @@ type Data struct {
 	Usage string `json:"y,omitempty"`
 }
 
+type UserUsage struct {
+	AccountNumber int    `json:"accountNumber"`
+	BillDate      string `json:"billDate"`
+	Consumption   string `json:"consumption"`
+}
+
 func authenticationCheck(w http.ResponseWriter, r *http.Request) (map[string]interface{}, error) {
 	var userInfo map[string]interface{}
 	cookie, err := r.Cookie(com.GetEnvVar("COOKIE_NAME"))
@@ -165,7 +171,6 @@ func getUserUsage(accountNum string, chn chan string) {
 	} else {
 		chn <- string(jString)
 	}
-
 }
 
 func getNationalUsage(chn chan string) {
@@ -219,4 +224,37 @@ func postToApi(url string, jsonStr []byte) (*http.Response, error) {
 		return nil, err
 	}
 	return resp, nil
+}
+
+func searchIfDateExist(arr []UserUsage, inputDateStr string) bool {
+	inputDate, err := time.Parse("2006-01-02", inputDateStr)
+	if err != nil {
+		return false
+	}
+	inputYearMonth := inputDate.Format("2006-01")
+	return recursiveBinarySearch(len(arr), 0, len(arr)-1, arr, inputYearMonth)
+}
+
+// Recursive Binary Search
+func recursiveBinarySearch(n, first, last int, arr []UserUsage, inputYearMonth string) bool {
+	if first > last {
+		return false
+	} else {
+		mid := (first + last) / 2
+		midValue := arr[mid]
+		midValueDate, err := time.Parse("2006-01-02", midValue.BillDate)
+		if err != nil {
+			return false
+		}
+		midValueYearMonth := midValueDate.Format("2006-01")
+		if inputYearMonth == midValueYearMonth {
+			return true
+		} else {
+			if inputYearMonth > midValueYearMonth {
+				return recursiveBinarySearch(n, first, mid-1, arr, inputYearMonth)
+			} else {
+				return recursiveBinarySearch(n, mid+1, last, arr, inputYearMonth)
+			}
+		}
+	}
 }
