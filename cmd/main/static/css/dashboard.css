@@ -108,3 +108,13 @@ body {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
+
+/*
+ * Usage Table
+ */
+.usage-table {
+  width: 100%;
+  max-width: 1000px;
+  padding: 15px;
+  margin: auto;
+}

@@ -31,6 +31,8 @@ func Start() {
 		panic(err.Error())
 	}
 
+	log.Info.Println("Server Start")
+
 	if err = http.ListenAndServe(com.GetEnvVar("PORT"), handlers(db)); err != nil {
 		log.Fatal.Fatalln("ListenAndServe: ", err)
 	}
