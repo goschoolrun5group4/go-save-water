@@ -366,11 +366,13 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 		UserUsage     string
 		NationalUsage string
 		UpdateAddress bool
+		Rewards       []map[string]interface{}
 	}{
 		loggedInUser,
 		"",
 		"",
 		false,
+		nil,
 	}
 
 	if loggedInUser["accountNumber"] == nil {
@@ -380,11 +382,13 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 
 	chnUserUsage := make(chan string)
 	chnNationalUsage := make(chan string)
+	chnRewards := make(chan []map[string]interface{})
 
 	go getUserUsage(loggedInUser["accountNumber"].(string), chnUserUsage)
 	go getNationalUsage(chnNationalUsage)
+	go getRewards(chnRewards)
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		select {
 		case userUsageJson := <-chnUserUsage:
 			if len(userUsageJson) > 0 {
@@ -394,6 +398,8 @@ func dashboard(w http.ResponseWriter, r *http.Request) {
 			if len(nationalUsageJson) > 0 {
 				ViewData.NationalUsage = nationalUsageJson
 			}
+		case rewards := <-chnRewards:
+			ViewData.Rewards = rewards
 		}
 	}
 
