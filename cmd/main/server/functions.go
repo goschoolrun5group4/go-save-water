@@ -258,3 +258,28 @@ func recursiveBinarySearch(n, first, last int, arr []UserUsage, inputYearMonth s
 		}
 	}
 }
+
+func getRewards(chn chan []map[string]interface{}) {
+	var (
+		retJSON []map[string]interface{}
+	)
+
+	url := com.GetEnvVar("API_REWARD_ADDR") + "/rewards"
+	body, _, err := com.FetchData(url)
+
+	if err != nil {
+		log.Error.Println(err)
+		chn <- nil
+		return
+	}
+
+	err = json.Unmarshal(body, &retJSON)
+
+	if err != nil {
+		log.Error.Println(err)
+		chn <- nil
+		return
+	}
+
+	chn <- retJSON
+}
