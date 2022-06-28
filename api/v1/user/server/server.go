@@ -39,6 +39,7 @@ func handlers(db *sql.DB) http.Handler {
 	api.Handle("/user/{userid:[0-9]+}", userDelete(db)).Methods("DELETE")
 	api.Handle("/user/{userid:[0-9]+}", userDelete(db)).Methods("DELETE")
 	api.Handle("/user/{userid:[0-9]+}/points/{points:[0-9]+}", userAddPoints(db)).Methods("POST")
+	api.Handle("/user/{userid:[0-9]+}/transactions", userTransactions(db)).Methods("GET")
 
 	return router
 }

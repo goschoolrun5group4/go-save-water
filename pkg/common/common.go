@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -63,4 +64,12 @@ func FetchData(url string) (body []byte, statusCode int, err error) {
 	}
 	defer resp.Body.Close()
 	return
+}
+
+func FormatDateTime(x string) string {
+	td, err := time.Parse(time.RFC3339, x)
+	if err == nil {
+		return td.Format("02-Jan-2006 15:04:05")
+	}
+	return ""
 }

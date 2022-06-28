@@ -9,6 +9,7 @@ import (
 	"go-save-water/pkg/log"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -33,12 +34,18 @@ type ResponseInfo struct {
 
 func rewards(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		// Create a helper function for preparing failure results.
+		fail := func(err error, statusCode int, body string) {
+			log.Error.Println(err)
+			w.WriteHeader(statusCode)
+			w.Write([]byte(body))
+		}
+
 		var rewards []RewardInfo
 		results, err := db.Query("SELECT RewardID, Title, Description, Quantity, RedeemAmt FROM Reward WHERE IsDeleted = false")
 		if err != nil {
-			log.Error.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("500 - Internal Server Error"))
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
 			return
 		}
 
@@ -46,9 +53,7 @@ func rewards(db *sql.DB) http.HandlerFunc {
 			var reward RewardInfo
 			err = results.Scan(&reward.RewardID, &reward.Title, &reward.Description, &reward.Quantity, &reward.RedeemAmt)
 			if err != nil {
-				log.Error.Println(err)
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte("500 - Internal Server Error"))
+				fail(err, http.StatusInternalServerError, com.MsgServerError)
 				return
 			}
 			rewards = append(rewards, reward)
@@ -68,6 +73,7 @@ func reward(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		rewardID := params["rewardID"]
+
 		var reward RewardInfo
 		stmt, err := db.Prepare("SELECT RewardID, Title, Description, Quantity, RedeemAmt FROM Reward WHERE IsDeleted = false AND RewardID = ?")
 		if err != nil {
@@ -116,7 +122,7 @@ func redeem(db *sql.DB) http.HandlerFunc {
 }
 
 func processRedemption(db *sql.DB, redeemInfo RedeemInfo, chn chan ResponseInfo) {
-	//time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// Check if Award is fully redeem
 	var (

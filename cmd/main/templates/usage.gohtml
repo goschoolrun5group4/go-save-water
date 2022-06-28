@@ -46,6 +46,12 @@
             </a>
           </li>
           <li class="nav-item">
+            <a class="nav-link" aria-current="page" href="/transaction">
+              <i data-feather="list"></i>
+              Transactions
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" href="/user/edit">
               <i data-feather="user"></i>
               User Info
@@ -106,7 +112,6 @@
           <table class=" table table-striped">
             <thead>
             <tr>
-              <th scope="col"></th>
               <th scope="col">Account Number</th>
               <th scope="col">Date</th>
               <th scope="col">Usage</th>
@@ -115,7 +120,6 @@
             <tbody>
             {{range .Usages}}
               <tr>
-                <th scope="row"></th>
                 <td>{{.AccountNumber}}</td>
                 <td>{{.BillDate}}</td>
                 <td>{{.Consumption}}</td>
