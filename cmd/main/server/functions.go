@@ -114,7 +114,7 @@ func sendVerificationEmail(email string) {
 		log.Error.Println(err)
 	}
 
-	url := "http://localhost:8080/verification/" + token
+	url := "https://localhost:443/verification/" + token
 	body := "<html>" +
 		"<div>Thanks for signing up!</div><br/>" +
 		"<div>Your account has been created, you can activate your account by pressing the url below. The link will expires in 15 minutes.</div><br/><br/>" +
