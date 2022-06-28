@@ -90,14 +90,14 @@
                     <div class="alert alert-success">User profile updated successfully.</div>
                 {{end}}
                 <div class="col-md-6">
-                    <label class="form-label" for ="firstName">First name</label>
+                    <label class="form-label required" for ="firstName">First name</label>
                     <input class="form-control {{if .ErrValidateFirstName}}is-invalid{{end}}" type="text" id="firstName" name="firstName" value="{{.EditUserData.FirstName}}" maxlength="45">
                     <div class="invalid-feedback">
                         Please enter a valid first name<br/>(English only).
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for ="lastName">Last name</label>
+                    <label class="form-label required" for ="lastName">Last name</label>
                     <input class="form-control {{if .ErrValidateLastName}}is-invalid{{end}}" type="text" id="lastName" name="lastName" value="{{.EditUserData.LastName}}" maxlength="45">
                     <div class="invalid-feedback">
                         Please enter a valid last name<br/>(English only).
@@ -107,14 +107,14 @@
                 <!-- Removed Username -->
 
                 <div class="col-12">
-                    <label class="form-label" for ="emailAddr">Email</label>
+                    <label class="form-label required" for ="emailAddr">Email</label>
                     <input class="form-control {{if .ErrValidateEmail}}is-invalid{{end}}" type="email" id="emailAddr" name="emailAddr" placeholder="you@example.com" value="{{.EditUserData.Email}}" maxlength="100">
                     <div class="invalid-feedback">
                         Please enter a valid email address.
                     </div>
                 </div>
                 <div class="col-12">
-                    <label class="form-label" for ="password">Password</label>
+                    <label class="form-label" for ="password">New Password</label>
                     <input class="form-control {{if .ErrValidatePassword}}is-invalid{{end}}" type="password" id="password" name="password" autocomplete="off">
                     <div class="invalid-feedback">
                         Your password is not strong enough. New passwords must:
@@ -127,7 +127,7 @@
                     </div>
                 </div>
                 <div class="col-12">
-                    <label class="form-label" for ="confirmPassword">Confirm Password</label>
+                    <label class="form-label" for ="confirmPassword">Confirm New Password</label>
                     <input class="form-control {{if .ComparePasswordFail }}is-invalid{{end}}" type="password" id="confirmPassword" name="confirmPassword" autocomplete="off">
                     <div class="invalid-feedback">
                         Passwords do not match. Please re-enter passwords.

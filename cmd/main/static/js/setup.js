@@ -6,7 +6,7 @@
     const now = new Date();
     const tzOffset = (new Date()).getTimezoneOffset() * 60000;
 
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const firstDateLocalISOTime = (new Date(firstDay - tzOffset)).toISOString().substring(0,10);
 
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);

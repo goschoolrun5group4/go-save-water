@@ -251,7 +251,7 @@ func userPut(db *sql.DB) http.HandlerFunc {
 				com.NewNullString(userInfo.Role),
 				userInfo.IsDeleted,
 				userInfo.Verified,
-				userInfo.PointBalance,
+				com.NewNullInt64(userInfo.PointBalance),
 			)
 
 			if err != nil {

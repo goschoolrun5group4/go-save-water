@@ -13,6 +13,7 @@ var (
 	tpl *template.Template
 	fm  = template.FuncMap{
 		"formatDateTime": com.FormatDateTime,
+		"formatDate":     com.FormatDate,
 	}
 )
 

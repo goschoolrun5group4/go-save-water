@@ -86,14 +86,14 @@
           <input class="form-control" type="number" id="accountNum" name="accountNum" value="{{.LoggedInUser.accountNumber}}" disabled>
         </div>
         <div class="col-md-6">
-          <label class="form-label" for ="billDate">Bill Date</label>
+          <label class="form-label required" for ="billDate">Bill Date</label>
           <input class="form-control {{if .ValidateBillDateFail}}is-invalid{{end}}" type="date" id="billDate" name="billDate" value="{{.Usage.BillDate}}" required>
           <div class="invalid-feedback">
             You've already added water usage for entered month.
           </div>
         </div>
         <div class="col-md-6">
-          <label class="form-label" for ="consumption">Usage Amount (Cu M)</label>
+          <label class="form-label required" for ="consumption">Usage Amount (Cu M)</label>
           <input class="form-control {{if .ValidateConsumptionFail}}is-invalid{{end}}" type="text" id="consumption" name="consumption" placeholder="Cubic Meter" value="{{.Usage.Consumption}}" required>
           <div class="invalid-feedback">
             Please enter a valid value.
@@ -114,14 +114,14 @@
             <tr>
               <th scope="col">Account Number</th>
               <th scope="col">Date</th>
-              <th scope="col">Usage</th>
+              <th scope="col">Usage (Cu M)</th>
             </tr>
             </thead>
             <tbody>
             {{range .Usages}}
               <tr>
                 <td>{{.AccountNumber}}</td>
-                <td>{{.BillDate}}</td>
+                <td>{{.BillDate | formatDate}}</td>
                 <td>{{.Consumption}}</td>
               </tr>
             {{end}}
