@@ -259,6 +259,29 @@ func recursiveBinarySearch(n, first, last int, arr []UserUsage, inputYearMonth s
 	}
 }
 
+func getReward(rewardID string, chn chan map[string]interface{}) {
+	var retJSON map[string]interface{}
+
+	url := com.GetEnvVar("API_REWARD_ADDR") + fmt.Sprintf("/reward/%s", rewardID)
+	body, _, err := com.FetchData(url)
+
+	if err != nil {
+		log.Error.Println(err)
+		chn <- nil
+		return
+	}
+
+	err = json.Unmarshal(body, &retJSON)
+
+	if err != nil {
+		log.Error.Println(err)
+		chn <- nil
+		return
+	}
+
+	chn <- retJSON
+}
+
 func getRewards(chn chan []map[string]interface{}) {
 	var (
 		retJSON []map[string]interface{}
@@ -282,4 +305,17 @@ func getRewards(chn chan []map[string]interface{}) {
 	}
 
 	chn <- retJSON
+}
+
+func removeCurrReward(arr []map[string]interface{}, rewardID string) []map[string]interface{} {
+	for k, v := range arr {
+		if rewardID == v["rewardID"].(string) {
+			return RemoveIndex(arr, k)
+		}
+	}
+	return arr
+}
+
+func RemoveIndex(arr []map[string]interface{}, index int) []map[string]interface{} {
+	return append(arr[:index], arr[index+1:]...)
 }

@@ -63,7 +63,7 @@
 
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1 class="h2">Hi, {{.LoggedInUser.firstName}} {{.LoggedInUser.lastName}}</h1>
+                <h1 class="h2">Hi, {{.LoggedInUser.firstName}} {{.LoggedInUser.lastName}} <small class="text-muted fs-5">({{.LoggedInUser.pointBalance}} PTS)</small></h1>
                 <div class="btn-toolbar mb-2 mb-md-0">
                     <div class="btn-group me-2">
                         <a class="btn btn-primary" href="/usage" role="button">
@@ -97,8 +97,9 @@
                                     <p class="card-text">{{.description}}</p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div class="btn-group">
-                                            <button type="button" class="btn btn-sm btn-success">Redeem</button>
+                                            <a href="/reward/{{.rewardID}}" class="btn btn-sm btn-success">View</a>
                                         </div>
+                                        <small class="text-muted">{{.redeemAmt}} PTS</small>
                                     </div>
                                 </div>
                             </div>
@@ -106,7 +107,7 @@
                     {{end}}
                 </div>
                 {{else}}
-                    <div class="alert alert-warning">There are currently no rewards, check back soon!</div>
+                    <div class="alert alert-warning">There are currently no offers available, check back soon!</div>
                 {{end}}
             </div>
             <div class="cl"></div>

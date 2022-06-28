@@ -27,6 +27,7 @@ type UserInfo struct {
 	SessionID      string `json:"sessionID,omitempty"`
 	ExpireDT       string `json:"expireDT,omitempty"`
 	AccountNumber  string `json:"accountNumber,omitempty"`
+	PointBalance   string `json:"pointBalance"`
 }
 
 func signup() http.HandlerFunc {
@@ -137,7 +138,7 @@ func verification(db *sql.DB) http.HandlerFunc {
 
 		if !userInfo["verified"].(bool) {
 			// Update User
-			jsonStr := "{\"verified\":true}"
+			jsonStr := "{\"verified\":true, \"pointBalance\": 1000}"
 
 			url = fmt.Sprintf("%s/user/%.0f", com.GetEnvVar("API_USER_ADDR"), userInfo["userID"])
 			req, err := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(jsonStr)))
@@ -157,6 +158,16 @@ func verification(db *sql.DB) http.HandlerFunc {
 				w.Write([]byte("500 - Internal Server Error"))
 				return
 			}
+		}
+
+		// Create Entry in Transaction
+		stmt, err := db.Prepare("INSERT INTO Transaction (UserID, Type, Points) VALUE (?, ?, ?)")
+		_, err = stmt.Query(userInfo["userID"], "Earn", 1000)
+		if err != nil {
+			log.Error.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("500 - Internal Server Error"))
+			return
 		}
 
 		// Process Session Data, delete old session if multiple sessions are detected.
@@ -281,7 +292,7 @@ func verifySession(db *sql.DB) http.HandlerFunc {
 			accountNum sql.NullString
 		)
 		results := db.QueryRow("CALL spUserSessionGet(?)", sessionID)
-		err := results.Scan(&userInfo.UserID, &userInfo.Username, &userInfo.FirstName, &userInfo.LastName, &userInfo.Email, &userInfo.Role, &accountNum)
+		err := results.Scan(&userInfo.UserID, &userInfo.Username, &userInfo.FirstName, &userInfo.LastName, &userInfo.Email, &userInfo.Role, &accountNum, &userInfo.PointBalance)
 
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
