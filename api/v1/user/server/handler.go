@@ -29,6 +29,15 @@ type UsersInfo struct {
 	PointBalance   int    `json:"pointBalance,omitempty"`
 }
 
+type Transaction struct {
+	TransactionID string  `json:"transactionID"`
+	UserID        string  `json:"userID"`
+	Type          string  `json:"type"`
+	RewardID      *string `json:"rewardID,omitempty"`
+	Points        string  `json:"points"`
+	TransactionDT string  `json:"transactionDT"`
+}
+
 func userList(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -360,5 +369,44 @@ func userAddPoints(db *sql.DB) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+func userTransactions(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		params := mux.Vars(r)
+		userID := params["userid"]
+
+		// Create a helper function for preparing failure results.
+		fail := func(err error, statusCode int, body string) {
+			log.Error.Println(err)
+			w.WriteHeader(statusCode)
+			w.Write([]byte(body))
+		}
+
+		var transactions []Transaction
+		stmt, err := db.Prepare("SELECT TransactionID, Type, RewardID, Points, TransactionDT FROM Transaction WHERE UserID = ? ORDER BY TransactionDT DESC")
+		if err != nil {
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
+			return
+		}
+
+		results, err := stmt.Query(userID)
+		if err != nil {
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
+			return
+		}
+
+		for results.Next() {
+			var transaction Transaction
+			err = results.Scan(&transaction.TransactionID, &transaction.Type, &transaction.RewardID, &transaction.Points, &transaction.TransactionDT)
+			if err != nil {
+				fail(err, http.StatusInternalServerError, com.MsgServerError)
+				return
+			}
+			transactions = append(transactions, transaction)
+		}
+
+		json.NewEncoder(w).Encode(transactions)
 	}
 }

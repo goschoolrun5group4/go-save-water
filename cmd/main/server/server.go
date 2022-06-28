@@ -9,10 +9,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var tpl *template.Template
+var (
+	tpl *template.Template
+	fm  = template.FuncMap{
+		"formatDateTime": com.FormatDateTime,
+	}
+)
 
 func init() {
-	tpl = template.Must(template.ParseGlob("templates/*"))
+	tpl = template.Must(template.New("").Funcs(fm).ParseGlob("templates/*"))
 }
 
 func Start() {
@@ -37,6 +42,7 @@ func Start() {
 	//router.HandleFunc("/deleteusage", deleteUsage)
 	router.HandleFunc("/verification/{token}", verification)
 	router.HandleFunc("/reward/{rewardID:[0-9]+}", rewardDetail)
+	router.HandleFunc("/transaction", transactions)
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 

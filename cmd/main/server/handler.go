@@ -938,3 +938,44 @@ func rewardDetail(w http.ResponseWriter, r *http.Request) {
 		log.Fatal.Fatalln(err)
 	}
 }
+
+func transactions(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	ViewData := struct {
+		LoggedInUser map[string]interface{}
+		Transactions []map[string]interface{}
+	}{
+		loggedInUser,
+		nil,
+	}
+
+	url := com.GetEnvVar("API_USER_ADDR") + fmt.Sprintf("/user/%d/transactions", int(loggedInUser["userID"].(float64)))
+	body, _, err := com.FetchData(url)
+	if err != nil {
+		log.Error.Println(err)
+		if err := tpl.ExecuteTemplate(w, "addressEdit.gohtml", ViewData); err != nil {
+			log.Fatal.Fatalln(err)
+		}
+		return
+	}
+	err = json.Unmarshal(body, &ViewData.Transactions)
+	if err != nil {
+		log.Error.Println(err)
+	}
+
+	if err := tpl.ExecuteTemplate(w, "transaction.gohtml", ViewData); err != nil {
+		log.Fatal.Fatalln(err)
+	}
+}
