@@ -241,7 +241,7 @@ func getNationalUsageByLatestMonths(db *sql.DB) http.HandlerFunc {
 
 		var usageList []*WaterUsage
 		for i := 0; i < numberOfMonths; i++ {
-			go getAveData(db, i, chn)
+			go getNationalAveData(db, i, chn)
 		}
 
 		for i := 0; i < numberOfMonths; i++ {
@@ -274,7 +274,7 @@ func getLatestMonths(numOfMths int) (time.Time, time.Time) {
 	return startDate, endDate
 }
 
-func getAveData(db *sql.DB, numOfMths int, chn chan *WaterUsage) {
+func getNationalAveData(db *sql.DB, numOfMths int, chn chan *WaterUsage) {
 	now := time.Now()
 
 	newDate := now.AddDate(0, -numOfMths, 0)
