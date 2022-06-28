@@ -267,7 +267,7 @@ func getLatestMonths(numOfMths int) (time.Time, time.Time) {
 	endDate := firstOfMonth.AddDate(0, 1, -1)
 
 	start := time.Now()
-	startDate := start.AddDate(0, -numOfMths-1, 0)
+	startDate := start.AddDate(0, -numOfMths+1, 0)
 	startYear, startMonth, _ := startDate.Date()
 	startDate = time.Date(startYear, startMonth, 1, 0, 0, 0, 0, time.UTC)
 
