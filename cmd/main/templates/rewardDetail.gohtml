@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
-    <title>GoSaveWater - Edit Address</title>
+    <title>GoSaveWater - Reward Detail</title>
 
     <!-- Bootstrap core CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
@@ -34,7 +34,7 @@
             <div class="position-sticky pt-3">
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link" aria-current="page" href="/dashboard">
+                        <a class="nav-link active" aria-current="page" href="/dashboard">
                             <i data-feather="home"></i>
                             Dashboard
                         </a>
@@ -52,7 +52,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/address/edit">
+                        <a class="nav-link" href="/address/edit">
                             <i data-feather="map"></i>
                             Address
                         </a>
@@ -73,57 +73,59 @@
                     </div>
                 </div>
             </div>
-
             <!-- Content Start Here -->
-            {{if not .RetrieveDataError}}
-                <form class="form-dashboard row g-3" method="post">
-                    <h1 class="h3 mb-3 fw-normal">Edit Address</h1>
-                    {{if .ProcessError}}
-                        <div class="alert alert-danger">Error processing your request, try again later.</div>
-                    {{end}}
-                    {{if .ProcessSuccess}}
-                        <div class="alert alert-success">Address Updated.</div>
-                    {{end}}
-                    <div class="col-6">
-                        <label class="form-label" for ="blockNumber">Block/House No.</label>
-                        <input class="form-control" type="text" id="blockNumber" name="blockNumber" value="{{.AddressInfo.BlockNumber}}" readonly>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label" for ="buildingName">Building Name</label>
-                        <input class="form-control" type="text" id="buildingName" name="buildingName" value="{{.AddressInfo.BuildingName}}" readonly>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for ="floor">Floor No.</label>
-                        <input class="form-control" type="number" id="floor" name="floor" value="{{.AddressInfo.Floor}}" maxlength="6">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for ="unitNumber">Unit No.</label>
-                        <input class="form-control" type="number" id="unitNumber" name="unitNumber" value="{{.AddressInfo.UnitNumber}}" maxlength="6">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label" for="postalCode">Postal Code</label>
-                        <div class="input-group mb-3">
-                            <input class="form-control" type="number" id="postalCode" name="postalCode" value="{{.AddressInfo.PostalCode}}" maxlength="6" required/>
-                            <div class="input-group-append">
-                                <button class="btn btn-primary" id="apiCall">Retrieve</button>
-                            </div>
-                            <div class="invalid-feedback">
-                                Please enter a valid Postal Code.
-                            </div>
+            <div class="container w-75">
+                <form method="post">
+                    <div class="card">
+                        <div class="card-header">
+                            <h1 class="h3 fw-normal">Reward</h1>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{.Reward.title}} ({{.Reward.redeemAmt}} PTS)</h5>
+                            <p class="card-text">{{.Reward.description}} <br/>{{.Reward.quantity}} left</p>
+                            {{if eq .Reward.quantity 0.0}}
+                                <button type="submit" class="btn btn-primary" disabled>Fully Redeem</button>
+                            {{else}}
+                                <button type="submit" class="btn btn-primary">Redeem</button>
+                            {{end}}
+                            {{if .RewardProcessError}}
+                                <br/><br/>
+                                <div class="alert alert-danger">{{.RewardProcessErrorMsg}}</div>
+                            {{end}}
+                            {{if .RewardProcessSuccessful}}
+                                <br/><br/>
+                                <div class="alert alert-success">Reward redeem successful!</div>
+                            {{end}}
                         </div>
                     </div>
-                    <div class="col-12">
-                        <label class="form-label" for="street">Street Name</label>
-                        <input class="form-control" type="text" id="street" name="street" value="{{.AddressInfo.Street}}" readonly/>
-                        <br/>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" id="formSubmit" class="btn btn-lg btn-primary">Submit</button>
-                    </div>
                 </form>
-            {{else}}
-                <div class="alert alert-danger">Error processing your request, try again later.</div>
-            {{end}}
+            </div>
+            <hr class="my-4">
+            <div class="container pt-3 pb-5">
+                <h1 class="h2 mb-3 fw-normal">Other Rewards</h1>
+                {{if .Rewards}}
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
+                        {{range .Rewards}}
+                            <div class="col">
+                                <div class="card shadow-sm">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{.title}}</h5>
+                                        <p class="card-text">{{.description}}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="btn-group">
+                                                <a href="/reward/{{.rewardID}}" class="btn btn-sm btn-success">View</a>
+                                            </div>
+                                            <small class="text-muted">{{.redeemAmt}} PTS</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {{end}}
+                    </div>
+                {{else}}
+                    <div class="alert alert-warning">There are currently no offers available, check back soon!</div>
+                {{end}}
+            </div>
             <!-- Content End Here -->
         </main>
     </div>
@@ -133,7 +135,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js" integrity="sha384-uO3SXW5IuS1ZpFPKugNNWqTZRRglnUJK6UAZ/gxOX80nxEkN9NcGZTftn6RzhGWE" crossorigin="anonymous"></script>
 <script src="/static/js/common.js"></script>
-<script src="/static/js/address.js"></script>
 
 </body>
 </html>

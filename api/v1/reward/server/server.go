@@ -2,12 +2,15 @@ package server
 
 import (
 	"database/sql"
+	"net/http"
+
 	com "go-save-water/pkg/common"
 	"go-save-water/pkg/log"
-	"net/http"
+	mw "go-save-water/pkg/middleware"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 )
 
 func Start() {
@@ -26,7 +29,11 @@ func handlers(db *sql.DB) http.Handler {
 	router := mux.NewRouter()
 	api := router.PathPrefix("/api/v1").Subrouter()
 
+	std := alice.New(mw.ContentTypeHandler)
+
 	api.Handle("/rewards", rewards(db)).Methods("GET")
+	api.Handle("/reward/{rewardID:[0-9]+}", reward(db)).Methods("GET")
+	api.Handle("/reward/redeem", std.Then(redeem(db))).Methods("POST")
 
 	return router
 }

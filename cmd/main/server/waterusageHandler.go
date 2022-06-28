@@ -88,7 +88,7 @@ func getUsages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getUsage(w http.ResponseWriter, r *http.Request) {
+func usage(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -200,6 +200,18 @@ func getUsage(w http.ResponseWriter, r *http.Request) {
 		resp, err := postToApi(url, jsonStr)
 		if err != nil {
 			ViewData.ProcessFormError = true
+		}
+
+		switch resp.StatusCode {
+		case http.StatusUnauthorized:
+			ViewData.ProcessFormError = true
+		case http.StatusConflict:
+			ViewData.ProcessFormError = true
+		case http.StatusUnprocessableEntity:
+			ViewData.ProcessFormError = true
+		}
+
+		if ViewData.ProcessFormError {
 			ViewData.ProcessErrorMsg = "Error processing form."
 			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
 				log.Fatal.Fatalln(err)
@@ -207,26 +219,21 @@ func getUsage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if resp.StatusCode == http.StatusUnauthorized {
+		// Insert into point
+		url = com.GetEnvVar("API_USER_ADDR") + fmt.Sprintf("/user/%d/points/200", int(loggedInUser["userID"].(float64)))
+		resp, err = postToApi(url, jsonStr)
+		if err != nil {
 			ViewData.ProcessFormError = true
-			ViewData.ProcessErrorMsg = "Error processing form."
-			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
-				log.Fatal.Fatalln(err)
-			}
-			return
 		}
 
-		if resp.StatusCode == http.StatusConflict {
+		switch resp.StatusCode {
+		case http.StatusInternalServerError:
 			ViewData.ProcessFormError = true
-			ViewData.ProcessErrorMsg = "Error processing form."
-			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
-				log.Fatal.Fatalln(err)
-			}
-			return
+		case http.StatusNotFound:
+			ViewData.ProcessFormError = true
 		}
 
-		if resp.StatusCode == http.StatusUnprocessableEntity {
-			ViewData.ProcessFormError = true
+		if ViewData.ProcessFormError {
 			ViewData.ProcessErrorMsg = "Error processing form."
 			if err := tpl.ExecuteTemplate(w, tplName, ViewData); err != nil {
 				log.Fatal.Fatalln(err)
@@ -235,6 +242,15 @@ func getUsage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ViewData.ProcessFormSuccess = true
+
+		// Refresh Data
+		loggedInUser, err := authenticationCheck(w, r)
+		if err != nil {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		ViewData.LoggedInUser = loggedInUser
+
 		url := com.GetEnvVar("API_USAGE_ADDR") + fmt.Sprintf("/usages/user/%s", loggedInUser["accountNumber"].(string))
 		body, _, err := com.FetchData(url)
 		if err != nil {

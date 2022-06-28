@@ -11,6 +11,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	MsgServerError  = "500 - Internal Server Error"
+	MsgUserNotFound = "404 - User Not found"
+)
+
 // GetEnvVar read all vars declared in .env.
 func GetEnvVar(v string) string {
 	err := godotenv.Load()

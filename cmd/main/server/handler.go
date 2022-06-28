@@ -121,6 +121,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
+		defer resp.Body.Close()
 		if err != nil {
 			log.Error.Println(err)
 			ViewData.Error = true
@@ -175,6 +176,7 @@ func verification(w http.ResponseWriter, r *http.Request) {
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
+		defer resp.Body.Close()
 		if err != nil {
 			log.Error.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -262,6 +264,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
+		defer resp.Body.Close()
 		if err != nil {
 			log.Error.Println(err)
 		}
@@ -336,7 +339,8 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonVal)))
 	req.Header.Set("Content-type", "application/json")
 	client := &http.Client{}
-	_, err = client.Do(req)
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
 	if err != nil {
 		log.Error.Println(err)
 	}
@@ -639,7 +643,8 @@ func addressEdit(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("Content-type", "application/json")
 
 		client := &http.Client{}
-		resp, err := client.Do(req)
+		res, err := client.Do(req)
+		defer res.Body.Close()
 		if err != nil {
 			ViewData.ProcessError = true
 			if err := tpl.ExecuteTemplate(w, "addressEdit.gohtml", ViewData); err != nil {
@@ -648,10 +653,10 @@ func addressEdit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if resp.StatusCode == http.StatusInternalServerError {
+		if res.StatusCode == http.StatusInternalServerError {
 			ViewData.ProcessError = true
 		}
-		if resp.StatusCode == http.StatusAccepted {
+		if res.StatusCode == http.StatusAccepted {
 			ViewData.ProcessSuccess = true
 		}
 
@@ -781,6 +786,7 @@ func userEdit(w http.ResponseWriter, r *http.Request) {
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
+		defer resp.Body.Close()
 		if err != nil {
 			log.Error.Println(err)
 			ViewData.ProcessError = true
@@ -808,6 +814,127 @@ func userEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tpl.ExecuteTemplate(w, "userEdit.gohtml", ViewData); err != nil {
+		log.Fatal.Fatalln(err)
+	}
+}
+
+func rewardDetail(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Panic.Println(err)
+		}
+	}()
+
+	loggedInUser, err := authenticationCheck(w, r)
+	if err != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	params := mux.Vars(r)
+	rewardID := params["rewardID"]
+
+	ViewData := struct {
+		LoggedInUser            map[string]interface{}
+		Rewards                 []map[string]interface{}
+		Reward                  map[string]interface{}
+		RewardProcessError      bool
+		RewardProcessErrorMsg   string
+		RewardProcessSuccessful bool
+	}{
+		loggedInUser,
+		nil,
+		nil,
+		false,
+		"",
+		false,
+	}
+
+	chnReward := make(chan map[string]interface{})
+	chnRewards := make(chan []map[string]interface{})
+
+	go getReward(rewardID, chnReward)
+	go getRewards(chnRewards)
+
+	for i := 0; i < 2; i++ {
+		select {
+		case reward := <-chnReward:
+			ViewData.Reward = reward
+		case rewards := <-chnRewards:
+			if rewards != nil {
+				rewards = removeCurrReward(rewards, rewardID)
+			}
+			ViewData.Rewards = rewards
+		}
+	}
+
+	if r.Method == http.MethodPost {
+		checkingErr := false
+		pointBalance, err := strconv.Atoi(loggedInUser["pointBalance"].(string))
+		if err != nil {
+			checkingErr = true
+			ViewData.RewardProcessError = true
+			ViewData.RewardProcessErrorMsg = "Error processing redemption, please try again later."
+		}
+
+		if pointBalance < int(ViewData.Reward["redeemAmt"].(float64)) {
+			checkingErr = true
+			ViewData.RewardProcessError = true
+			ViewData.RewardProcessErrorMsg = "Not enough points to redeem this reward."
+		}
+
+		if checkingErr {
+			if err := tpl.ExecuteTemplate(w, "rewardDetail.gohtml", ViewData); err != nil {
+				log.Fatal.Fatalln(err)
+			}
+			return
+		}
+
+		url := com.GetEnvVar("API_REWARD_ADDR") + "/reward/redeem"
+		jsonVal := fmt.Sprintf(`{"userID":%0.f,"rewardID":%s}`, loggedInUser["userID"].(float64), ViewData.Reward["rewardID"].(string))
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(jsonVal)))
+		req.Header.Set("Content-type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		defer resp.Body.Close()
+		if err != nil {
+			log.Error.Println(err)
+		}
+
+		switch resp.StatusCode {
+		case http.StatusBadRequest:
+			ViewData.RewardProcessError = true
+			ViewData.RewardProcessErrorMsg = "Not enough points to redeem this voucher."
+		case http.StatusConflict:
+			ViewData.RewardProcessError = true
+			ViewData.RewardProcessErrorMsg = "Reward has been fully redeemed."
+		case http.StatusInternalServerError:
+			ViewData.RewardProcessError = true
+			ViewData.RewardProcessErrorMsg = "Error Processing the redemption, please try again."
+		case http.StatusNotFound:
+			ViewData.RewardProcessError = true
+			ViewData.RewardProcessErrorMsg = "Error Processing the redemption, please try again."
+		default:
+			ViewData.RewardProcessSuccessful = true
+			// Refresh Data
+			chnReward = make(chan map[string]interface{})
+			go getReward(rewardID, chnReward)
+			reward := <-chnReward
+			ViewData.Reward = reward
+			// Get User Data
+			loggedInUser, err = authenticationCheck(w, r)
+			if err != nil {
+				http.Redirect(w, r, "/", http.StatusSeeOther)
+				return
+			}
+			ViewData.LoggedInUser = loggedInUser
+
+		}
+	}
+
+	if err := tpl.ExecuteTemplate(w, "rewardDetail.gohtml", ViewData); err != nil {
 		log.Fatal.Fatalln(err)
 	}
 }

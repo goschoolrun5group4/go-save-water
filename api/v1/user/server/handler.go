@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"go-save-water/pkg/log"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -24,6 +26,7 @@ type UsersInfo struct {
 	CreatedDT      string `json:"createdDT,omitempty"`
 	ModifiedDT     string `json:"modifiedDT,omitempty"`
 	Verified       *bool  `json:"verified,omitempty"`
+	PointBalance   int    `json:"pointBalance,omitempty"`
 }
 
 func userList(db *sql.DB) http.HandlerFunc {
@@ -70,7 +73,7 @@ func userGet(db *sql.DB) http.HandlerFunc {
 		userID := params["userid"]
 
 		// Prepared Statement
-		stmt, err := db.Prepare("SELECT UserID, FirstName, LastName, UserName, Email, Role, IsDeleted, Verified FROM User WHERE UserID = ?")
+		stmt, err := db.Prepare("SELECT UserID, FirstName, LastName, UserName, Email, Role, IsDeleted, Verified, PointBalance FROM User WHERE UserID = ?")
 		if err != nil {
 			log.Error.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -87,6 +90,7 @@ func userGet(db *sql.DB) http.HandlerFunc {
 			&user.Role,
 			&user.IsDeleted,
 			&user.Verified,
+			&user.PointBalance,
 		)
 
 		if err != nil {
@@ -228,7 +232,7 @@ func userPut(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			_, err = db.Query("call spUserUpdate(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			_, err = db.Query("call spUserUpdate(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				userID,
 				com.NewNullString(userInfo.FirstName),
 				com.NewNullString(userInfo.LastName),
@@ -238,6 +242,7 @@ func userPut(db *sql.DB) http.HandlerFunc {
 				com.NewNullString(userInfo.Role),
 				userInfo.IsDeleted,
 				userInfo.Verified,
+				userInfo.PointBalance,
 			)
 
 			if err != nil {
@@ -292,5 +297,68 @@ func userDelete(db *sql.DB) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte("202 - User deleted: " + userID))
+	}
+}
+
+// func userAddPoints to add point to user table
+func userAddPoints(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		params := mux.Vars(r)
+		userID := params["userid"]
+		pointsToAddStr := params["points"]
+		pointsToAdd, _ := strconv.Atoi(pointsToAddStr)
+
+		// Create a helper function for preparing failure results.
+		fail := func(err error, statusCode int, body string) {
+			log.Error.Println(err)
+			w.WriteHeader(statusCode)
+			w.Write([]byte(body))
+		}
+
+		ctx := context.Background()
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
+			return
+		}
+		// Defer a rollback in case anything fails.
+		defer tx.Rollback()
+
+		// Get Current Point Balance
+		var pointBalance int
+
+		if err = tx.QueryRowContext(ctx, "SELECT PointBalance FROM User WHERE UserID = ?", userID).Scan(&pointBalance); err != nil {
+			if err == sql.ErrNoRows {
+				fail(err, http.StatusNotFound, com.MsgUserNotFound)
+				return
+			}
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
+			return
+		}
+
+		newPointBalance := pointBalance + pointsToAdd
+
+		// Update Point
+		_, err = tx.ExecContext(ctx, "UPDATE User SET PointBalance = ?, ModifiedDT = NOW() WHERE UserID = ?", newPointBalance, userID)
+		if err != nil {
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
+			return
+		}
+
+		// Create Entry in Transaction
+		_, err = tx.ExecContext(ctx, "INSERT INTO Transaction (UserID, Type, Points) VALUES (?, ?, ?)", userID, "Earn", pointsToAdd)
+		if err != nil {
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
+			return
+		}
+
+		// Commit the transaction.
+		if err = tx.Commit(); err != nil {
+			fail(err, http.StatusInternalServerError, com.MsgServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
