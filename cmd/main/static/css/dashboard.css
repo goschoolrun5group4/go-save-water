@@ -109,6 +109,11 @@ body {
   border-top-right-radius: 0;
 }
 
+.form-dashboard .required.form-label:after {
+  content:"*";
+  color:red;
+}
+
 /*
  * Usage Table
  */

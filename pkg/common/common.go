@@ -42,6 +42,17 @@ func NewNullString(s string) sql.NullString {
 	}
 }
 
+// NewNullInt64 sets 0 to sql null value
+func NewNullInt64(d int) sql.NullInt64 {
+	if d == 0 {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{
+		Int64: int64(d),
+		Valid: true,
+	}
+}
+
 func FetchData(url string) (body []byte, statusCode int, err error) {
 	client := &http.Client{}
 	var req *http.Request
@@ -66,6 +77,16 @@ func FetchData(url string) (body []byte, statusCode int, err error) {
 	return
 }
 
+// FormatDate parse and format date to YYYY-MM-DD format.
+func FormatDate(x string) string {
+	td, err := time.Parse("2006-01-02", x)
+	if err == nil {
+		return td.Format("02-Jan-2006")
+	}
+	return ""
+}
+
+// FormatDateTime parse and format date to YYYY-MM-DD HH:MM:SS format.
 func FormatDateTime(x string) string {
 	td, err := time.Parse(time.RFC3339, x)
 	if err == nil {
