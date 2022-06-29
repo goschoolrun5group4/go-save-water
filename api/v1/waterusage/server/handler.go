@@ -277,7 +277,7 @@ func getLatestMonths(numOfMths int) (time.Time, time.Time) {
 func getNationalAveData(db *sql.DB, numOfMths int, chn chan *WaterUsage) {
 	now := time.Now()
 
-	newDate := now.AddDate(0, -numOfMths, 0)
+	newDate := now.AddDate(0, -numOfMths, -4)
 	startYear, startMonth, _ := newDate.Date()
 	startDate := time.Date(startYear, startMonth, 1, 0, 0, 0, 0, time.UTC)
 
