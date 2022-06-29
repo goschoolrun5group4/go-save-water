@@ -59,7 +59,7 @@
 
       for (let i = 5; i >= 0; i--) {
         let date = new Date()
-        date.setMonth(date.getMonth() - i)
+        date.setMonth(date.getMonth() - i, 1)
         dataMonth.push(month[date.getMonth()])
       }
 
